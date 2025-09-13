@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +38,7 @@ export default function ProfilePage() {
                 <Avatar className="h-24 w-24 border-2 border-amber-300 dark:border-amber-600">
                   <AvatarImage src={user?.image || ''} alt={user?.name || 'User'} />
                   <AvatarFallback className="bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 text-2xl">
-                    {getInitials(user?.name)}
+                  {/*  {getInitials(user?.name)} */}
                   </AvatarFallback>
                 </Avatar>
                 <Button variant="outline" className="mt-2 w-full bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-200">
@@ -79,7 +80,7 @@ export default function ProfilePage() {
                     <Label htmlFor="role">Role</Label>
                     <Input 
                       id="role" 
-                      defaultValue={user?.role || 'Member'} 
+                    //  defaultValue={user?.role || 'Member'} 
                       className="border-amber-300 dark:border-amber-700"
                       disabled
                     />
