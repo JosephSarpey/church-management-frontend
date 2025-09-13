@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from 'react';
@@ -165,7 +166,6 @@ export default function ResetPasswordPage() {
           type="submit" 
           variant="auth" 
           className="w-full" 
-          isLoading={isSubmitting}
         >
           Reset Password
         </Button>

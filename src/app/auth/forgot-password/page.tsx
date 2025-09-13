@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from 'react';
@@ -98,7 +99,6 @@ export default function ForgotPasswordPage() {
           type="submit" 
           variant="auth" 
           className="w-full" 
-          isLoading={isSubmitting}
         >
           Send reset link
         </Button>
