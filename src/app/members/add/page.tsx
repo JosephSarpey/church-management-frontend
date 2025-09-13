@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { CalendarIcon, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FamilyMembersInput } from '@/components/forms/FamilyMembersInput';
 
 // Form schema with validation
 const memberFormSchema = z.object({
@@ -24,13 +26,18 @@ const memberFormSchema = z.object({
   dateOfBirth: z.date({
     error: 'A date of birth is required.',
   }),
-  gender: z.enum(['male', 'female'], 'Please select a gender'),
+  gender: z.enum(['male', 'female', 'other', 'prefer-not-to-say'], 'Please select a gender'),
   address: z.string().min(5, { message: 'Please enter a valid address' }),
   membershipStatus: z.enum(['active', 'inactive', 'pending'], 'Please select a membership status'),
   joinDate: z.date({
     error: 'Join date is required.',
   }),
   notes: z.string().optional(),
+  familyMembers: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    relationship: z.string(),
+  })).optional(),
 });
 
 type MemberFormValues = z.infer<typeof memberFormSchema>;
@@ -43,12 +50,14 @@ export default function AddMemberPage() {
     handleSubmit,
     setValue,
     watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<MemberFormValues>({
     resolver: zodResolver(memberFormSchema),
     defaultValues: {
       membershipStatus: 'active',
       joinDate: new Date(),
+      familyMembers: [],
     },
   });
 
@@ -248,6 +257,14 @@ export default function AddMemberPage() {
                   id="notes"
                   {...register('notes')}
                   placeholder="Any additional notes about the member"
+                />
+              </div>
+
+              {/* Family Members */}
+              <div className="space-y-2 md:col-span-2">
+                <FamilyMembersInput
+                  value={watch('familyMembers') || []}
+                  onChange={(members) => setValue('familyMembers', members)}
                 />
               </div>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Sun, Moon, User, LogOut, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -11,11 +11,30 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationDropdown } from './NotificationDropdown';
+import Image from 'next/image';
+import GradientText from '@/components/GradientText';
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = () => setMatches(media.matches);
+    window.addEventListener('resize', listener);
+    return () => window.removeEventListener('resize', listener);
+  }, [matches, query]);
+
+  return matches;
+}
 
 export function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+
   // Mock user data - replace with actual user data from your auth system
   const user = {
     name: 'John Doe',
@@ -28,15 +47,31 @@ export function Navbar() {
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
         <div className="flex items-center space-x-2">
-          <h1 className="text-xl font-bold">Dashboard</h1>
+          <Image
+            src="/zion_logo.jpeg"
+            alt="Logo"
+            width={32}
+            height={32}
+            className='rounded-full'
+          />
+          {isDesktop && (
+            <GradientText
+              colors={["#f59e0b", "#9ca3af", "#f59e0b"]}
+              animationSpeed={5}
+              showBorder={false}
+              className="text-3xl font-extrabold"
+            >
+              ZION CHAPEL WORLDWIDE-THE SOLID CHURCH
+            </GradientText>
+          )}
         </div>
-        
+
         <div className="ml-auto flex items-center space-x-4">
           <NotificationDropdown />
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
+
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label="Toggle theme"
           >
@@ -46,7 +81,7 @@ export function Navbar() {
               <Moon className="h-5 w-5" />
             )}
           </Button>
-          
+
           <DropdownMenu onOpenChange={setIsProfileOpen}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-2">

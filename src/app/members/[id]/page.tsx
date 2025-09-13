@@ -7,8 +7,21 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Mail, Phone, Calendar, MapPin, Edit, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { ActivityTimeline } from '@/components/ActivityTimeline';
 
 type MemberStatus = 'active' | 'inactive' | 'pending';
+
+type ActivityType = 'attendance' | 'tithe' | 'offering' | 'note' | 'other';
+
+export interface Activity {
+  id: string;
+  type: ActivityType;
+  date: string;
+  title: string;
+  description: string;
+  present?: boolean;
+  amount?: number;
+}
 
 interface Member {
   id: string;
@@ -27,6 +40,7 @@ interface Member {
     relationship: string;
   }>;
   notes?: string;
+  activities?: Activity[];
 }
 
 export default function MemberProfilePage() {
@@ -49,7 +63,57 @@ export default function MemberProfilePage() {
       { id: '2', name: 'Jane Doe', relationship: 'Spouse' },
       { id: '3', name: 'Mike Doe', relationship: 'Child' },
     ],
-    notes: 'Regular attendee and volunteer for Sunday school.'
+    notes: 'Regular attendee and volunteer for Sunday school.',
+    activities: [
+      {
+        id: '1',
+        type: 'attendance',
+        date: new Date().toISOString(),
+        title: 'Sunday Service',
+        present: true,
+        description: 'Morning service at Main Sanctuary'
+      },
+      {
+        id: '2',
+        type: 'tithe',
+        date: new Date().toISOString(),
+        title: 'Monthly Tithe',
+        amount: 200,
+        description: 'September 2023 tithe'
+      },
+      {
+        id: '3',
+        type: 'attendance',
+        date: new Date(Date.now() - 86400000).toISOString(),
+        title: 'Bible Study',
+        present: true,
+        description: 'Wednesday night Bible study group'
+      },
+      {
+        id: '4',
+        type: 'offering',
+        date: new Date(Date.now() - 2 * 86400000).toISOString(),
+        title: 'Building Fund',
+        amount: 50,
+        description: 'Donation to church building fund'
+      },
+      {
+        id: '5',
+        type: 'attendance',
+        date: new Date(Date.now() - 7 * 86400000).toISOString(),
+        title: 'Sunday Service',
+        present: false,
+        description: 'Absent - Out of town'
+      },
+      {
+        id: '6',
+        type: 'tithe',
+        date: new Date(Date.now() - 30 * 86400000).toISOString(),
+        title: 'Monthly Tithe',
+        amount: 180,
+        description: 'August 2023 tithe'
+      },
+    ]
   };
 
   const getStatusBadge = (status: MemberStatus) => {
@@ -72,6 +136,32 @@ export default function MemberProfilePage() {
       day: 'numeric',
     });
   };
+
+  // Calculate attendance percentage
+  const attendanceStats = (() => {
+    const allAttendance = member.activities?.filter(a => a.type === 'attendance') || [];
+    const presentCount = allAttendance.filter(a => a.present).length;
+    const totalCount = allAttendance.length;
+    
+    return {
+      percentage: totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0,
+      presentCount,
+      totalCount
+    };
+  })();
+
+  // Calculate financial stats
+  const financialStats = (() => {
+    const tithes = member.activities?.filter(a => a.type === 'tithe') || [];
+    const offerings = member.activities?.filter(a => a.type === 'offering') || [];
+    
+    return {
+      totalTithes: tithes.reduce((sum, a) => sum + (a.amount || 0), 0),
+      titheCount: tithes.length,
+      totalOfferings: offerings.reduce((sum, a) => sum + (a.amount || 0), 0),
+      offeringCount: offerings.length
+    };
+  })();
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -181,16 +271,71 @@ export default function MemberProfilePage() {
             </Card>
           )}
 
-          {/* Additional sections can be added here */}
-          <Card>
+          {/* Activities */}
+          <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Activity</CardTitle>
+              <CardTitle>Recent Activities</CardTitle>
+              <p className="text-sm text-muted-foreground">Member&apos;s recent activities and contributions</p>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Member activity and statistics will appear here.</p>
-              {/* Add activity timeline or other relevant information */}
+              {member.activities?.length ? (
+                <ActivityTimeline activities={member.activities} />
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No activities found</p>
+              )}
             </CardContent>
           </Card>
+
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Attendance (Last 30 days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {attendanceStats.percentage}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {attendanceStats.presentCount} of {attendanceStats.totalCount} services
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Tithes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${financialStats.totalTithes.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {financialStats.titheCount} transactions
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Offerings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${financialStats.totalOfferings.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {financialStats.offeringCount} donations
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

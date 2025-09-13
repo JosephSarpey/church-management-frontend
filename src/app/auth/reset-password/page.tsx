@@ -3,52 +3,52 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '@/components/ui/Button'; 
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState(''); 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{text: string; type: 'success' | 'error'} | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
-  const email = searchParams.get('email');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
-
-    // Validate passwords match
+    
     if (password !== confirmPassword) {
-      setMessage({
-        text: 'Passwords do not match',
-        type: 'error'
-      });
+      toast.error('Passwords do not match');
       return;
     }
 
-    // Validate password strength (at least 8 characters)
     if (password.length < 8) {
-      setMessage({
-        text: 'Password must be at least 8 characters long',
-        type: 'error'
-      });
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (!token) {
+      toast.error('Invalid or missing reset token');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement actual password reset logic with your backend
-      console.log('Resetting password for:', { email, token });
+      // TODO: Implement actual password reset logic with the token
+      console.log('Password reset attempt with token:', token);
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      setMessage({
-        text: 'Your password has been reset successfully!',
-        type: 'success'
-      });
+      setIsSuccess(true);
+      setPassword('');
+      setConfirmPassword('');
+      
+      toast.success('Your password has been reset successfully!');
       
       // Redirect to login after 3 seconds
       setTimeout(() => {
@@ -56,120 +56,130 @@ export default function ResetPasswordPage() {
       }, 3000);
       
     } catch (error) {
-      setMessage({
-        text: 'Failed to reset password. The link may have expired or is invalid.',
-        type: 'error'
-      });
+      toast.error('Failed to reset password. The link may have expired.');
       console.error('Password reset error:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (isSuccess) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+          <svg
+            className="h-6 w-6 text-green-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold">Password Reset Successful</h2>
+        <p className="text-muted-foreground">
+          Your password has been updated successfully.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Redirecting to login page...
+        </p>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+          <svg
+            className="h-6 w-6 text-red-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold">Invalid Reset Link</h2>
+        <p className="text-muted-foreground">
+          The password reset link is invalid or has expired.
+        </p>
+        <Button 
+          variant="outline" 
+          className="w-full mt-4"
+          onClick={() => router.push('/auth/forgot-password')}
+        >
+          Request a new reset link
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Set a new password
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Please enter your new password below.
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold tracking-tight">Reset your password</h2>
+        <p className="text-sm text-muted-foreground mt-2">
+          Enter your new password below
+        </p>
+      </div>
+      
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-2">
+          <Label htmlFor="password">New Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+          />
+          <p className="text-xs text-muted-foreground">
+            Password must be at least 8 characters long
           </p>
         </div>
         
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {!token || !email ? (
-            <div className="text-center">
-              <p className="text-red-600">Invalid or expired reset link</p>
-              <p className="mt-2 text-sm text-gray-600">
-                Please request a new password reset link from the{' '}
-                <Link href="/auth/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
-                  forgot password
-                </Link>{' '}
-                page.
-              </p>
-            </div>
-          ) : (
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              {message && (
-                <div className={`rounded-md p-4 ${message.type === 'success' ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <p className={`text-sm ${message.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
-                    {message.text}
-                  </p>
-                </div>
-              )}
-              
-              <input type="hidden" name="email" value={email || ''} />
-              <input type="hidden" name="token" value={token || ''} />
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  New Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={8}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Enter new password"
-                    disabled={isSubmitting || message?.type === 'success'}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Must be at least 8 characters long
-                </p>
-              </div>
-              
-              <div>
-                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700">
-                  Confirm New Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="confirm-password"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    minLength={8}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Confirm new password"
-                    disabled={isSubmitting || message?.type === 'success'}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || message?.type === 'success'}
-                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${(isSubmitting || message?.type === 'success') ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-                >
-                  {isSubmitting ? 'Resetting...' : message?.type === 'success' ? 'Password Reset!' : 'Reset Password'}
-                </button>
-              </div>
-            </form>
-          )}
-          
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Remembered your password?{' '}
-              <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Sign in
-              </Link>
-            </p>
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm New Password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
         </div>
-      </div>
+        
+        <Button 
+          type="submit" 
+          variant="auth" 
+          className="w-full" 
+          isLoading={isSubmitting}
+        >
+          Reset Password
+        </Button>
+        
+        <p className="text-center text-sm text-muted-foreground">
+          Remember your password?{' '}
+          <Link 
+            href="/auth/login" 
+            className="font-medium text-primary hover:underline"
+          >
+            Sign in
+          </Link>
+        </p>
+      </form>
     </div>
   );
 }
