@@ -1,4 +1,4 @@
-import { Member } from "@/app/members/page"
+import { Member } from "@/app/(protected)/members/page"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/Button"
 import {
@@ -25,16 +25,17 @@ interface MembersTableProps {
 }
 
 export function MembersTable({ members, onViewProfile, onEdit, onDelete }: MembersTableProps) {
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
+  const getStatusBadge = (status: string | undefined) => {
+    const statusToUse = status || 'PENDING'; 
+    switch (statusToUse) {
+      case 'ACTIVE':
         return <Badge className="bg-green-500">Active</Badge>
-      case 'inactive':
-        return <Badge variant="outline">Inactive</Badge>
-      case 'pending':
+      case 'INACTIVE':
+        return <Badge className="bg-red-500">Inactive</Badge>
+      case 'PENDING':
         return <Badge className="bg-yellow-500">Pending</Badge>
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge className="bg-gray-500">{status}</Badge>
     }
   }
 
@@ -43,6 +44,7 @@ export function MembersTable({ members, onViewProfile, onEdit, onDelete }: Membe
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Member #</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Phone</TableHead>
@@ -55,6 +57,9 @@ export function MembersTable({ members, onViewProfile, onEdit, onDelete }: Membe
           {members.length > 0 ? (
             members.map((member) => (
               <TableRow key={member.id}>
+                <TableCell className="font-medium">
+                  {member.memberNumber || 'N/A'}
+                </TableCell>
                 <TableCell className="font-medium">
                   {member.firstName} {member.lastName}
                 </TableCell>
@@ -92,7 +97,7 @@ export function MembersTable({ members, onViewProfile, onEdit, onDelete }: Membe
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={6} className="h-24 text-center">
+              <TableCell colSpan={7} className="h-24 text-center">
                 No members found
               </TableCell>
             </TableRow>

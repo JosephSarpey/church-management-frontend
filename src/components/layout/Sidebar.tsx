@@ -13,8 +13,6 @@ import {
   GaugeCircle,
   CalendarDays,
   Settings,
-  LogOut,
-  User
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -51,9 +49,7 @@ export function Sidebar() {
   ];
 
   const bottomNavItems = [
-    { href: "/profile", icon: <User size={20} />, label: "Profile" },
     { href: "/settings", icon: <Settings size={20} />, label: "Settings" },
-    { href: "/logout", icon: <LogOut size={20} />, label: "Logout" },
   ];
 
   return (
@@ -73,7 +69,7 @@ export function Sidebar() {
                 height={32}
                 className='rounded-full border-2 border-amber-500/30'
               />
-              <span className="text-xl font-bold whitespace-nowrap text-amber-900 dark:text-amber-200">ZCW-Admin</span>
+              <span className="text-xl font-bold whitespace-nowrap text-amber-900 dark:text-amber-200">ZCW</span>
             </Link>
           )}
           <button

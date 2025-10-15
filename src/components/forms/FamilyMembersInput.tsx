@@ -49,7 +49,7 @@ export function FamilyMembersInput({ value = [], onChange }: FamilyMembersInputP
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Family Members</Label>
+        <Label>Add Family Member(s)</Label>
         <div className="flex gap-2">
           <Input
             placeholder="Name"

@@ -1,135 +1,174 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  Legend,
+} from "recharts";
 import { motion } from "framer-motion";
+import { useState } from "react";
 
+// 🎨 Modern rhythmic SaaS color palette
 const COLORS = [
-  '#4F46E5', // indigo-600
-  '#7C3AED', // violet-600
-  '#9333EA', // purple-600
-  '#C026D3', // fuchsia-600
-  '#F59E0B', // amber-500
-  '#10B981'  // emerald-500
+  "#3B82F6", // blue-500
+  "#6366F1", // indigo-500
+  "#8B5CF6", // violet-500
+  "#06B6D4", // cyan-500
+  "#14B8A6", // teal-500
+  "#0EA5E9", // sky-500
 ];
 
 const HOVER_COLORS = [
-  '#4338CA', // indigo-700
-  '#6D28D9', // violet-700
-  '#7E22CE', // purple-700
-  '#A21CAF', // fuchsia-700
-  '#D97706', // amber-600
-  '#059669'  // emerald-600
+  "#2563EB", // blue-600
+  "#4F46E5", // indigo-600
+  "#7C3AED", // violet-600
+  "#0891B2", // cyan-600
+  "#0D9488", // teal-600
+  "#0284C7", // sky-600
 ];
 
 const data = [
-  { name: "Jan", amount: 1200, color: COLORS[0] },
-  { name: "Feb", amount: 1500, color: COLORS[1] },
-  { name: "Mar", amount: 1000, color: COLORS[2] },
-  { name: "Apr", amount: 1800, color: COLORS[3] },
-  { name: "May", amount: 1600, color: COLORS[4] },
-  { name: "Jun", amount: 2000, color: COLORS[5] },
+  { name: "Jan", amount: 1200 },
+  { name: "Feb", amount: 1500 },
+  { name: "Mar", amount: 1000 },
+  { name: "Apr", amount: 1800 },
+  { name: "May", amount: 1600 },
+  { name: "Jun", amount: 2000 },
 ];
 
 export function TithesChart() {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm"
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0, 
+        scale: isHovered ? 1.01 : 1 
+      }}
+      transition={{ 
+        duration: 0.6, 
+        ease: "easeOut",
+        scale: { type: "spring", stiffness: 300, damping: 15 }
+      }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      className="w-full bg-card/80 backdrop-blur-sm border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
     >
-      <h3 className="text-lg font-medium mb-4">Monthly Tithes</h3>
-      <div className="h-[350px]">
+      <div className="mb-5 pb-3 border-b border-border flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Monthly Tithes</h3>
+      </div>
+      <div className="h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
             margin={{
-              top: 20,
-              right: 30,
-              left: 20,
-              bottom: 60,
+              top: 5,
+              right: 5,
+              left: 5,
+              bottom: 30,
             }}
-            barGap={4}
-            barCategoryGap="20%"
+            barCategoryGap="25%"
           >
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              className="stroke-gray-100 dark:stroke-gray-700" 
+            {/* Grid */}
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(148, 163, 184, 0.15)"
               vertical={false}
             />
-            <XAxis 
-              dataKey="name" 
-              className="text-xs"
-              tick={{ fill: 'currentColor' }}
+
+            {/* X Axis */}
+            <XAxis
+              dataKey="name"
+              tick={{ fill: "currentColor", fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
-            <YAxis 
-              className="text-xs"
+
+            {/* Y Axis */}
+            <YAxis
               tickFormatter={(value) => `$${value}`}
-              tick={{ fill: 'currentColor' }}
+              tick={{ fill: "currentColor", fontSize: 12 }}
               axisLine={false}
               tickLine={false}
-              width={60}
+              width={50}
             />
-            <Tooltip 
+
+            {/* Tooltip */}
+            <Tooltip
+              cursor={{ fill: "rgba(0,0,0,0.04)" }}
               content={({ active, payload, label }) => {
-                if (active && payload && payload.length) {
+                if (active && payload?.[0]?.value !== undefined) {
                   return (
-                    <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-                      <p className="font-semibold text-sm mb-1">{label}</p>
-                      <p className="text-sm">
-                        <span className="text-muted-foreground">Amount: </span>
-                        <span className="font-medium">${payload[0].value?.toLocaleString()}</span>
+                    <div className="bg-background/90 backdrop-blur-md border border-border rounded-lg px-3 py-2 shadow-md">
+                      <p className="font-medium text-sm">{label}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Amount:{" "}
+                        <span className="font-semibold text-foreground">
+                          ${payload[0].value.toLocaleString()}
+                        </span>
                       </p>
                     </div>
                   );
                 }
                 return null;
               }}
-              cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
-              wrapperStyle={{
-                zIndex: 100,
-                position: 'absolute',
-                top: -70,
-                left: 0,
-              }}
             />
-            <Bar 
+
+            {/* Bars */}
+            <Bar
               dataKey="amount"
               name="Tithes"
-              radius={[4, 4, 0, 0]}
+              radius={[8, 8, 0, 0]}
               animationDuration={1500}
               animationEasing="ease-out"
+              animationBegin={200}
+              isAnimationActive={true}
+              style={{
+                transition: 'all 0.3s ease-out',
+              }}
             >
               {data.map((entry, index) => (
-                <Cell 
+                <Cell
                   key={`cell-${index}`}
-                  fill={COLORS[index % COLORS.length]}
-                  className="transition-all duration-300 hover:opacity-90"
-                  onMouseEnter={() => {
-                    const element = document.querySelector(`.bar-${index}`);
-                    if (element) {
-                      element.setAttribute('fill', HOVER_COLORS[index % HOVER_COLORS.length]);
-                    }
+                  fill={hoveredIndex === index 
+                    ? HOVER_COLORS[index % HOVER_COLORS.length] 
+                    : COLORS[index % COLORS.length]}
+                  className="transition-all duration-300 ease-out"
+                  style={{
+                    transform: hoveredIndex === index 
+                      ? 'translateY(-4px)' 
+                      : 'translateY(0)',
+                    opacity: hoveredIndex === null || hoveredIndex === index ? 1 : 0.7,
+                    transition: 'all 0.3s ease-out'
                   }}
-                  onMouseLeave={() => {
-                    const element = document.querySelector(`.bar-${index}`);
-                    if (element) {
-                      element.setAttribute('fill', COLORS[index % COLORS.length]);
-                    }
-                  }}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
                 />
               ))}
             </Bar>
-            <Legend 
+
+            {/* Legend */}
+            <Legend
               verticalAlign="bottom"
+              align="center"
               content={({ payload }) => (
-                <div className="flex justify-center mt-6 space-x-4">
+                <div className="flex justify-center mt-3 flex-wrap gap-2 text-xs">
                   {payload?.map((entry, index) => (
-                    <div key={`item-${index}`} className="flex items-center text-sm">
-                      <div 
-                        className="w-3 h-3 rounded mr-2" 
+                    <div
+                      key={`legend-${index}`}
+                      className="flex items-center text-xs text-muted-foreground"
+                    >
+                      <div
+                        className="w-3 h-3 rounded-full mr-2"
                         style={{ backgroundColor: entry.color }}
                       />
                       {entry.value}

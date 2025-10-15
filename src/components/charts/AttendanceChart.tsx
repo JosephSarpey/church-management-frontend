@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 
@@ -18,37 +19,36 @@ interface LabelProps {
 interface DataProps {
   name: string;
   value: number;
-  color: string;
 }
 
 const COLORS = [
-  '#4F46E5', // indigo-600
-  '#7C3AED', // violet-600
-  '#9333EA', // purple-600
-  '#C026D3', // fuchsia-600
-  '#DB2777', // pink-600
-  '#E11D48', // rose-600
-  '#F59E0B'  // amber-500
+  "#0EA5E9", // sky-500
+  "#0284C7", // sky-600
+  "#6366F1", // indigo-500
+  "#4F46E5", // indigo-600
+  "#14B8A6", // teal-500
+  "#0D9488", // teal-600
+  "#38BDF8", // sky-400
 ];
 
 const HOVER_COLORS = [
-  '#4338CA', // indigo-700
-  '#6D28D9', // violet-700
-  '#7E22CE', // purple-700
-  '#A21CAF', // fuchsia-700
-  '#BE185D', // pink-700
-  '#BE123C', // rose-700
-  '#D97706'  // amber-600
+  "#0284C7",
+  "#0369A1",
+  "#4F46E5",
+  "#4338CA",
+  "#0D9488",
+  "#0F766E",
+  "#0EA5E9",
 ];
 
 const data: DataProps[] = [
-  { name: "Sunday", value: 80, color: COLORS[0] },
-  { name: "Monday", value: 85, color: COLORS[1] },
-  { name: "Tuesday", value: 78, color: COLORS[2] },
-  { name: "Wednesday", value: 90, color: COLORS[3] },
-  { name: "Thursday", value: 88, color: COLORS[4] },
-  { name: "Friday", value: 92, color: COLORS[5] },
-  { name: "Saturday", value: 87, color: COLORS[6] },
+  { name: "Sunday", value: 80 },
+  { name: "Monday", value: 85 },
+  { name: "Tuesday", value: 78 },
+  { name: "Wednesday", value: 90 },
+  { name: "Thursday", value: 88 },
+  { name: "Friday", value: 92 },
+  { name: "Saturday", value: 87 },
 ];
 
 const RADIAN = Math.PI / 180;
@@ -61,7 +61,7 @@ const renderCustomizedLabel = ({
   outerRadius,
   percent,
 }: LabelProps) => {
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
@@ -72,7 +72,7 @@ const renderCustomizedLabel = ({
       fill="white"
       textAnchor="middle"
       dominantBaseline="central"
-      className="text-xs font-medium"
+      className="text-[10px] font-medium"
     >
       {`${(percent * 100).toFixed(0)}%`}
     </text>
@@ -80,80 +80,132 @@ const renderCustomizedLabel = ({
 };
 
 export function AttendanceChart() {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm"
+      initial={{ opacity: 0, y: 20, scale: 0.98 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0, 
+        scale: isHovered ? 1.01 : 1 
+      }}
+      transition={{ 
+        duration: 0.6, 
+        ease: "easeOut",
+        scale: { type: "spring", stiffness: 300, damping: 15 }
+      }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      className="w-full bg-card/80 backdrop-blur-sm border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
     >
-      <h3 className="text-lg font-medium mb-4">Weekly Attendance</h3>
-      <div className="h-[400px] flex">
-        <div className="flex-1">
+      <div className="mb-5 pb-3 border-b border-border">
+        <h3 className="text-lg font-semibold">Weekly Attendance</h3>
+      </div>
+      <div className="h-[320px] sm:h-[280px] flex flex-col sm:flex-row">
+        <div className="relative flex-1 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={0}
+                innerRadius={50}
+                outerRadius={90}
                 labelLine={false}
                 label={renderCustomizedLabel}
-                outerRadius={100}
                 dataKey="value"
-                animationBegin={0}
-                animationDuration={1000}
+                animationBegin={200}
+                animationDuration={1500}
                 animationEasing="ease-out"
-                onMouseEnter={(_, index) => {
-                  // Update color on hover for better feedback
-                  if (index >= 0) {
-                    const updatedData = [...data];
-                    updatedData[index] = {
-                      ...updatedData[index],
-                      color: HOVER_COLORS[index % HOVER_COLORS.length],
-                    };
-                  }
-                }}
-                onMouseLeave={(_, index) => {
-                  // Revert to original color on mouse leave
-                  if (index >= 0) {
-                    const updatedData = [...data];
-                    updatedData[index] = {
-                      ...updatedData[index],
-                      color: COLORS[index % COLORS.length],
-                    };
-                  }
-                }}
+                onMouseEnter={(_, index) => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
               >
-                {data.map((entry, index) => (
+                {data.map((_, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={entry.color}
+                    fill={
+                      hoveredIndex === index
+                        ? HOVER_COLORS[index % HOVER_COLORS.length]
+                        : COLORS[index % COLORS.length]
+                    }
                     stroke="#fff"
-                    strokeWidth={1}
+                    strokeWidth={1.5}
+                    style={{
+                      transform: hoveredIndex === index 
+                        ? 'scale(1.08) translate(2px, -2px)' 
+                        : 'scale(1)',
+                      transformOrigin: "center",
+                      opacity: hoveredIndex === null || hoveredIndex === index ? 1 : 0.8,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
                   />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  `${value}%`,
-                  name,
-                ]}
+                formatter={(value: number, name: string) => [`${value}%`, name]}
               />
             </PieChart>
           </ResponsiveContainer>
+
+          {/* Center Label */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+              {total}
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              Total
+            </span>
+          </div>
         </div>
-        
-        {/* Vertical Legend */}
-        <div className="flex flex-col justify-center space-y-2 ml-4">
+
+        {/* Legend */}
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 sm:mt-0 sm:ml-4 sm:flex-col sm:justify-start sm:overflow-y-auto sm:pr-2 sm:max-h-full">
           {data.map((item, index) => (
-            <div key={`legend-${index}`} className="flex items-center">
-              <div 
+            <motion.div 
+              key={`legend-${index}`} 
+              className="flex items-center cursor-pointer"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ 
+                opacity: 1, 
+                x: 0,
+                color: hoveredIndex === index ? 'var(--color-primary, #4F46E5)' : 'inherit'
+              }}
+              transition={{ 
+                duration: 0.3, 
+                delay: 0.1 * index,
+                ease: "easeOut"
+              }}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+            >
+              <motion.div
                 className="w-4 h-4 rounded-full mr-2"
-                style={{ backgroundColor: item.color }}
+                style={{
+                  backgroundColor:
+                    hoveredIndex === index
+                      ? HOVER_COLORS[index % HOVER_COLORS.length]
+                      : COLORS[index % COLORS.length],
+                }}
+                animate={{
+                  scale: hoveredIndex === index ? 1.2 : 1,
+                  boxShadow: hoveredIndex === index ? '0 0 0 2px rgba(255,255,255,0.5)' : 'none'
+                }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               />
-              <span className="text-sm">{item.name}</span>
-            </div>
+              <div className="flex items-baseline min-w-0">
+                <span className="text-sm font-medium truncate">{item.name}</span>
+                <motion.span 
+                  className="ml-2 text-xs text-muted-foreground whitespace-nowrap"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: hoveredIndex === index ? 1 : 0 }}
+                >
+                  {((item.value / total) * 100).toFixed(1)}%
+                </motion.span>
+              </div>
+            </motion.div>
           ))}
         </div>
       </div>

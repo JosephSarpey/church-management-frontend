@@ -2,17 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { Sun, Moon, User, LogOut, ChevronDown } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { UserButton, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 import { NotificationDropdown } from './NotificationDropdown';
 import Image from 'next/image';
 import GradientText from '@/components/GradientText';
+import Link from 'next/link';
 
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
@@ -31,48 +27,43 @@ function useMediaQuery(query: string): boolean {
 }
 
 export function Navbar() {
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
-  // Mock user data - replace with actual user data from your auth system
-  const user = {
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'Admin',
-    avatar: '/default-avatar.png'
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center space-x-2">
-          <Image
-            src="/zion_logo.jpeg"
-            alt="Logo"
-            width={32}
-            height={32}
-            className='rounded-full'
-          />
-          {isDesktop && (
-            <GradientText
-              colors={["#f59e0b", "#9ca3af", "#f59e0b"]}
-              animationSpeed={5}
-              showBorder={false}
-              className="text-3xl font-extrabold"
-            >
-              ZION CHAPEL WORLDWIDE-THE SOLID CHURCH
-            </GradientText>
-          )}
+          <Link href="/" className="flex items-center space-x-2">
+            <Image
+              src="/zion_logo.jpeg"
+              alt="Logo"
+              width={32}
+              height={32}
+              className="rounded-full"
+            />
+            {isDesktop && (
+              <GradientText
+                colors={["#f59e0b", "#9ca3af", "#f59e0b"]}
+                animationSpeed={5}
+                showBorder={false}
+                className="text-3xl font-extrabold"
+              >
+                ZION CHAPEL WORLDWIDE-THE SOLID CHURCH
+              </GradientText>
+            )}
+          </Link>
         </div>
 
-        <div className="ml-auto flex items-center space-x-4">
-          <NotificationDropdown />
-
+        <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={toggleTheme}
             aria-label="Toggle theme"
           >
             {theme === 'dark' ? (
@@ -82,36 +73,18 @@ export function Navbar() {
             )}
           </Button>
 
-          <DropdownMenu onOpenChange={setIsProfileOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 px-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="hidden md:inline-flex">{user.name}</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <div className="flex items-center gap-3 p-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex flex-col">
-                  <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                </div>
-              </div>
-              <DropdownMenuItem className="cursor-pointer">
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <SignedIn>
+            <NotificationDropdown />
+            <div className="ml-2">
+              <UserButton afterSignOutUrl="/sign-in" />
+            </div>
+          </SignedIn>
+
+          <SignedOut>
+            <SignInButton mode="modal">
+              <Button variant="outline">Sign In</Button>
+            </SignInButton>
+          </SignedOut>
         </div>
       </div>
     </header>

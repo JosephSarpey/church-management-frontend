@@ -1,6 +1,6 @@
 import { CheckCircle, DollarSign, FileText, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
-import { Activity } from '@/app/members/[id]/page';
+import { Activity } from '@/app/(protected)/members/[id]/page';
 
 interface ActivityTimelineProps {
   activities: Activity[];
