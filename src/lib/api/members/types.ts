@@ -65,3 +65,15 @@ export type CreateMemberDto = Omit<Member, 'id' | 'createdAt' | 'updatedAt'>;
 export type UpdateMemberDto = Partial<CreateMemberDto>;
 export type MemberResponse = Member;
 export type PaginatedMembers = PaginatedResponse<Member>;
+
+export type ActivityType = 'attendance' | 'tithe' | 'offering' | 'note' | 'other';
+
+export interface Activity {
+  id: string;
+  type: ActivityType;
+  date: string;
+  title: string;
+  description: string;
+  present?: boolean;
+  amount?: number;
+}

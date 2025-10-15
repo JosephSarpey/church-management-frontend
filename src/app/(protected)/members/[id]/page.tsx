@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -10,20 +11,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { membersApi } from '@/lib/api/members';
-import { Member, GenderOptions, MembershipStatusOptions, MaritalStatusOptions } from '@/lib/api/members/types';
+import { 
+  Member, 
+  GenderOptions, 
+  MembershipStatusOptions, 
+  MaritalStatusOptions,
+  Activity,
+  ActivityType 
+} from '@/lib/api/members/types';
 import { format } from 'date-fns';
-
-type ActivityType = 'attendance' | 'tithe' | 'offering' | 'note' | 'other';
-
-interface Activity {
-  id: string;
-  type: ActivityType;
-  date: string;
-  title: string;
-  description: string;
-  present?: boolean;
-  amount?: number;
-}
 
 export default function MemberProfilePage() {
   const params = useParams<{ id: string }>();

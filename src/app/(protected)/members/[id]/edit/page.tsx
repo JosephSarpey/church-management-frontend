@@ -19,6 +19,7 @@ import { FamilyMembersInput } from '@/components/forms/FamilyMembersInput';
 import { membersApi } from '@/lib/api/members';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 
 // Form schema with validation
 const memberFormSchema = z.object({
@@ -45,8 +46,8 @@ const memberFormSchema = z.object({
 
 type MemberFormValues = z.infer<typeof memberFormSchema>;
 
-export default function EditMemberPage({ params }: { params: { id: string } }) {
-  // In Next.js 13+, params is a Promise and needs to be unwrapped with React.use()
+export default function EditMemberPage() {
+  const params = useParams<{ id: string }>();
   const { id } = params;
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
