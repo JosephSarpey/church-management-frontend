@@ -1,17 +1,5 @@
-// Import the API client directly from the source to avoid circular dependencies
-import axios from 'axios';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-// Create a new axios instance specifically for attendance API calls
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-  timeout: 10000, // 10 seconds
-});
+// Use the main API client from the root
+import { api } from '../index';
 import {
   Attendance,
   CreateAttendanceDto,
@@ -31,7 +19,9 @@ export const attendanceApi = {
    * @param attendanceData Attendance data to mark
    */
   async markAttendance(attendanceData: CreateAttendanceDto): Promise<MarkAttendanceResponse> {
-    const response = await api.post<MarkAttendanceResponse>('/attendance', attendanceData);
+    const response = await api.post<MarkAttendanceResponse>('/attendance', attendanceData, {
+      withCredentials: true
+    });
     return response.data;
   },
 
@@ -40,7 +30,10 @@ export const attendanceApi = {
    * @param params Query parameters for filtering and pagination
    */
   async getAttendances(params?: FindAllAttendanceParams): Promise<PaginatedAttendanceResponse> {
-    const response = await api.get<PaginatedAttendanceResponse>('/attendance', { params });
+    const response = await api.get<PaginatedAttendanceResponse>('/attendance', { 
+      params,
+      withCredentials: true 
+    });
     return response.data;
   },
 
