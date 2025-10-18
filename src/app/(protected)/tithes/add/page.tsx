@@ -24,7 +24,8 @@ export default function AddTithePage() {
     memberName: '',
     amount: '',
     paymentDate: new Date().toISOString().split('T')[0],
-    paymentMethod: 'Cash',
+    paymentMethod: '',
+    paymentType: '',
     referenceNumber: '',
     notes: '',
   });
@@ -91,7 +92,7 @@ export default function AddTithePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Add New Tithe</CardTitle>
+          <CardTitle>Add New Tithe/Offering</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -109,9 +110,26 @@ export default function AddTithePage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="paymentType">Tithe/Offering *</Label>
+                <Select
+                  value={formData.paymentType}
+                  onValueChange={(value) => handleSelectChange('paymentType', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Cash">Tithe</SelectItem>
+                    <SelectItem value="Bank Transfer">Offering</SelectItem>
+                    
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="amount">Amount *</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-2.5">$</span>
+                  <span className="absolute left-3 top-2.5">₵</span>
                   <Input
                     id="amount"
                     name="amount"

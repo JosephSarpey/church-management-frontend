@@ -98,12 +98,20 @@ export default function SettingsPage() {
   };
 
   if (isLoading) {
-    return <div>Loading settings...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-lg font-medium">Loading settings...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-amber-900 dark:text-amber-100 mb-8">Settings</h1>
+      <h4 className="text-xl font-semibold text-amber-900 dark:text-amber-100 mb-6">Edit Church Information & App Preferences</h4>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Church Information */}

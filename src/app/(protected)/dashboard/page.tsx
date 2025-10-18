@@ -2,15 +2,33 @@
 
 import { motion } from "framer-motion";
 import { 
-  Users, CalendarCheck, DollarSign, Activity, 
+  Users, CalendarCheck, Activity, 
   UserPlus, CalendarDays, ArrowUpRight, MapPin, ArrowUp, ArrowDown,
   ArrowRight,
-  Plus
+  Plus,
+  DollarSign
 } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import { membersApi } from "@/lib/api/members";
+import { attendanceApi } from "@/lib/api/attendance";
+import { endOfDay, subDays } from "date-fns";
+import { toast } from "sonner";
+
+const CediSign = ({ className }: { className?: string }) => (
+  <Image 
+    src="/cedi-sign.svg" 
+    alt="Cedi Sign" 
+    width={20} 
+    height={20} 
+    className={className}
+  />
+);
 import Link from "next/link";
 import TextType from "@/components/TextType";
-import { AttendanceChart } from "@/components/charts/AttendanceChart";
 import { TithesChart } from "@/components/charts/TithesChart";
+import { AttendanceTrends } from "@/components/charts/AttendanceTrends";
+import { ServiceType } from "@/lib/api/attendance/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface Event {
@@ -24,14 +42,220 @@ interface Event {
 }
 
 export default function DashboardPage() {
-  const stats = {
-    totalMembers: 256,
-    weeklyAttendance: 184,
-    monthlyTithes: 5275.5,
-    newMembersThisMonth: 12,
-    upcomingEvents: 3,
-    attendanceRate: 87.5
+  const [isLoading, setIsLoading] = useState(true);
+  const [attendanceData, setAttendanceData] = useState<Array<{
+    id: string;
+    date: Date;
+    serviceType: ServiceType;
+    isVisitor: boolean;
+    visitorName?: string;
+    member?: {
+      firstName: string;
+      lastName: string;
+    };
+  }>>([]);
+
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    weeklyAttendance: 0,
+    previousWeekAttendance: 0,
+    monthlyTithes: 0,
+    newMembersThisMonth: 0,
+    memberChangePercent: 0,
+    upcomingEvents: 0,
+    attendanceRate: 0,
+    previousAttendanceRate: 0,
+    monthlyGrowth: 0,
+    absenteesPercentage: 0,
+    previousAbsenteesPercentage: 0
+  });
+
+  const fetchAttendanceData = async (totalMembers: number) => {
+    try {
+      setIsLoading(true);
+      const thirtyDaysAgo = subDays(new Date(), 30);
+      const twoMonthsAgo = subDays(new Date(), 60);
+      
+      // Fetch attendance data for the last 60 days to calculate monthly growth
+      const [currentMonthResponse, previousMonthResponse] = await Promise.all([
+        attendanceApi.getAttendances({
+          startDate: thirtyDaysAgo.toISOString(),
+          endDate: endOfDay(new Date()).toISOString(),
+          limit: 1000,
+        }),
+        attendanceApi.getAttendances({
+          startDate: twoMonthsAgo.toISOString(),
+          endDate: thirtyDaysAgo.toISOString(),
+          limit: 1000,
+        })
+      ]);
+
+      // Process current month data
+      const currentMonthRecords = Array.isArray(currentMonthResponse)
+        ? currentMonthResponse.map(record => ({
+            ...record,
+            date: new Date(record.date)
+          }))
+        : [];
+
+      // Process previous month data
+      const previousMonthRecords = Array.isArray(previousMonthResponse)
+        ? previousMonthResponse.map(record => ({
+            ...record,
+            date: new Date(record.date)
+          }))
+        : [];
+
+      setAttendanceData(currentMonthRecords);
+      
+      // Calculate weekly attendance (last 7 days and previous 7 days)
+      const oneWeekAgo = subDays(new Date(), 7);
+      const twoWeeksAgo = subDays(new Date(), 14);
+      
+      const weeklyAttendance = currentMonthRecords
+        .filter(record => new Date(record.date) >= oneWeekAgo)
+        .length;
+        
+      const previousWeekAttendance = currentMonthRecords
+        .filter(record => new Date(record.date) >= twoWeeksAgo && new Date(record.date) < oneWeekAgo)
+        .length;
+      
+      // Calculate attendance metrics
+      const memberAttendances = currentMonthRecords.filter(record => !record.isVisitor);
+      const uniqueAttendees = new Set(memberAttendances.map(a => a.member?.id)).size;
+      
+      // Calculate attendance rate as percentage of total members who attended at least once
+      const attendanceRate = totalMembers > 0 
+        ? Math.round((uniqueAttendees / totalMembers) * 100)
+        : 0;
+        
+      // Calculate previous period attendance rate
+      const previousPeriodAttendances = previousMonthRecords.filter(record => !record.isVisitor);
+      const previousUniqueAttendees = new Set(previousPeriodAttendances.map(a => a.member?.id)).size;
+      const previousAttendanceRate = totalMembers > 0
+        ? Math.round((previousUniqueAttendees / totalMembers) * 100)
+        : 0;
+      
+      // Calculate monthly growth based on total attendance count
+      const currentMonthCount = currentMonthRecords.length;
+      const previousMonthCount = previousMonthRecords.length;
+      const monthlyGrowth = previousMonthCount > 0
+        ? Math.round(((currentMonthCount - previousMonthCount) / previousMonthCount) * 100)
+        : currentMonthCount > 0 ? 100 : 0;
+      
+      // Helper function to format date as YYYY-MM-DD
+      const formatDate = (date: Date) => {
+        return date.toISOString().split('T')[0];
+      };
+
+      // Group attendance by service type and date to count absentees
+      const serviceAttendance = currentMonthRecords.reduce((acc, record) => {
+        const date = record.date instanceof Date ? formatDate(record.date) : record.date.split('T')[0];
+        const serviceKey = `${date}_${record.serviceType}`;
+        if (!acc[serviceKey]) {
+          acc[serviceKey] = new Set<string>();
+        }
+        if (record.member?.id) {
+          acc[serviceKey].add(record.member.id);
+        }
+        return acc;
+      }, {} as Record<string, Set<string>>);
+
+      // Calculate total possible attendances (services * total members)
+      const totalServices = Object.keys(serviceAttendance).length;
+      const totalPossibleAttendances = totalServices * totalMembers;
+      
+      // Calculate total present attendances
+      const totalPresentAttendances = Object.values<Set<string>>(serviceAttendance)
+        .reduce((sum: number, members: Set<string>) => sum + members.size, 0);
+      
+      // Calculate absentees (total possible - present)
+      const absenteesCount = Math.max(0, totalPossibleAttendances - totalPresentAttendances);
+      const absenteesPercentage = totalPossibleAttendances > 0
+        ? Math.round((absenteesCount / totalPossibleAttendances) * 100)
+        : 0;
+      
+      // Calculate previous period absentees
+      const prevServiceAttendance = previousMonthRecords.reduce((acc, record) => {
+        const date = record.date instanceof Date ? formatDate(record.date) : record.date.split('T')[0];
+        const serviceKey = `${date}_${record.serviceType}`;
+        if (!acc[serviceKey]) {
+          acc[serviceKey] = new Set<string>();
+        }
+        if (record.member?.id) {
+          acc[serviceKey].add(record.member.id);
+        }
+        return acc;
+      }, {} as Record<string, Set<string>>);
+      
+      const prevTotalServices = Object.keys(prevServiceAttendance).length;
+      const prevTotalPossibleAttendances = prevTotalServices * totalMembers;
+      const prevTotalPresentAttendances = Object.values<Set<string>>(prevServiceAttendance)
+        .reduce((sum: number, members: Set<string>) => sum + members.size, 0);
+      
+      const previousAbsenteesCount = Math.max(0, prevTotalPossibleAttendances - prevTotalPresentAttendances);
+      const previousAbsenteesPercentage = prevTotalPossibleAttendances > 0
+        ? Math.round((previousAbsenteesCount / prevTotalPossibleAttendances) * 100)
+        : 0;
+
+      // Update stats with all metrics
+      setStats(prev => ({
+        ...prev,
+        weeklyAttendance,
+        previousWeekAttendance,
+        attendanceRate,
+        previousAttendanceRate,
+        monthlyGrowth,
+        absenteesPercentage,
+        previousAbsenteesPercentage
+      }));
+      
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+      toast.error('Failed to load attendance data');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // First fetch members count
+        const membersCountResponse = await membersApi.getTotalMembersCount();
+        
+        // Then fetch attendance data with the members count
+        await fetchAttendanceData(membersCountResponse.count);
+        
+        // Calculate percentage changes
+        const calculatePercentageChange = (current: number, previous: number): number => {
+          if (previous === 0) return current > 0 ? 100 : 0;
+          return Number((((current - previous) / previous) * 100).toFixed(1));
+        };
+        
+        const memberChangePercent = calculatePercentageChange(
+          membersCountResponse.count,
+          membersCountResponse.previousCount
+        );
+        
+        setStats(prev => ({
+          ...prev,
+          totalMembers: membersCountResponse.count,
+          memberChangePercent,
+          newMembersThisMonth: membersCountResponse.count - membersCountResponse.previousCount
+        }));
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const upcomingEvents: Event[] = [
     {
@@ -56,7 +280,7 @@ export default function DashboardPage() {
 
   const recentActivity = [
     { id: 1, title: "New member registered", description: "John Doe joined the church community", time: "2 hours ago", icon: UserPlus },
-    { id: 2, title: "Tithe received", description: "$150.00 from Jane Smith", time: "5 hours ago", icon: DollarSign },
+    { id: 2, title: "Tithe received", description: "₵150.00 from Jane Smith", time: "5 hours ago", icon: CediSign },
     { id: 3, title: "Event created", description: "Sunday Service - September 15", time: "1 day ago", icon: CalendarDays },
   ];
 
@@ -71,7 +295,6 @@ export default function DashboardPage() {
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
-  // Rhythmic color palette for circular metrics
   const circularColors = ["#4F46E5", "#3B82F6", "#10B981", "#F59E0B", "#EF4444"];
 
   return (
@@ -122,14 +345,16 @@ export default function DashboardPage() {
         <MetricCard 
           title="Total Members" 
           value={stats.totalMembers} 
-          change={12} 
+          change={stats.memberChangePercent} 
           icon={<Users className="h-5 w-5" />} 
           color={circularColors[0]} 
         />
         <MetricCard 
           title="Weekly Attendance" 
           value={stats.weeklyAttendance} 
-          change={8} 
+          change={stats.previousWeekAttendance > 0 
+            ? Math.round(((stats.weeklyAttendance - stats.previousWeekAttendance) / stats.previousWeekAttendance) * 100) 
+            : stats.weeklyAttendance > 0 ? 100 : 0} 
           icon={<CalendarCheck className="h-5 w-5" />} 
           color={circularColors[1]} 
         />
@@ -163,7 +388,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Attendance Overview</h2>
-                  <p className="text-sm text-muted-foreground">Last 6 months trend</p>
+                  <p className="text-sm text-muted-foreground">Last 30 days trend</p>
                 </div>
                 <Link 
                   href="/attendance" 
@@ -175,14 +400,53 @@ export default function DashboardPage() {
               
               {/* Mini metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-                <AnimatedCircularMetric label="Attendance Rate" value={stats.attendanceRate} max={100} color={circularColors[2]} suffix="%" change={+3} />
-                <AnimatedCircularMetric label="Weekly Avg" value={stats.weeklyAttendance} max={1000} color={circularColors[0]} change={+8} />
-                <AnimatedCircularMetric label="Monthly Growth" value={6.4} max={100} color={circularColors[1]} suffix="%" change={+2} />
-                <AnimatedCircularMetric label="Absentees" value={34} max={200} color={circularColors[4]} change={-1} />
+                <AnimatedCircularMetric 
+                  label="Attendance Rate" 
+                  value={stats.attendanceRate} 
+                  max={100} 
+                  color={circularColors[2]} 
+                  suffix="%" 
+                  change={stats.previousAttendanceRate > 0 
+                    ? stats.attendanceRate - stats.previousAttendanceRate
+                    : stats.attendanceRate > 0 ? stats.attendanceRate : 0} 
+                />
+                <AnimatedCircularMetric 
+                  label="Weekly Avg" 
+                  value={stats.weeklyAttendance} 
+                  max={1000} 
+                  color={circularColors[0]} 
+                  change={stats.previousWeekAttendance > 0 
+                    ? Math.round(((stats.weeklyAttendance - stats.previousWeekAttendance) / stats.previousWeekAttendance) * 100) 
+                    : stats.weeklyAttendance > 0 ? 100 : 0} 
+                />
+                <AnimatedCircularMetric 
+                  label="Monthly Growth" 
+                  value={Math.abs(stats.monthlyGrowth)} 
+                  max={100} 
+                  color={stats.monthlyGrowth >= 0 ? circularColors[1] : circularColors[4]} 
+                  suffix="%" 
+                  change={stats.monthlyGrowth} 
+                />
+                <AnimatedCircularMetric 
+                  label="Absentees" 
+                  value={stats.absenteesPercentage} 
+                  max={100} 
+                  color={circularColors[4]} 
+                  suffix="%" 
+                  change={stats.previousAbsenteesPercentage > 0 
+                    ? stats.previousAbsenteesPercentage - stats.absenteesPercentage
+                    : stats.absenteesPercentage > 0 ? -stats.absenteesPercentage : 0} 
+                />
               </div>
             </div>
-            <div className="h-80">
-              <AttendanceChart />
+            <div className="h-80 w-full">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                </div>
+              ) : (
+                <AttendanceTrends attendanceData={attendanceData} />
+              )}
             </div>
           </div>
         </motion.div>
@@ -291,7 +555,7 @@ export default function DashboardPage() {
                 value={stats.monthlyTithes} 
                 max={10000} 
                 color={circularColors[2]} 
-                prefix="$" 
+                prefix="₵" 
                 change={+15} 
               />
               <AnimatedCircularMetric 
@@ -354,7 +618,7 @@ function MetricCard({ title, value, change, icon, color }: { title: string; valu
   );
 }
 
-// Animated Circular Metric with improved design
+// Animated Circular Metric
 function AnimatedCircularMetric({
   label,
   value,
@@ -374,14 +638,13 @@ function AnimatedCircularMetric({
 }) {
   const percentage = Math.min(100, (value / max) * 100);
   const isPositive = change >= 0;
-  const radius = 24; // Slightly smaller for better proportions
+  const radius = 35;
   const circumference = 2 * Math.PI * radius;
-  const strokeWidth = 4;
+  const strokeWidth = 10;
   const size = (radius + strokeWidth) * 2;
   const viewBox = `0 0 ${size} ${size}`;
   const offset = circumference * (1 - percentage / 100);
 
-  // Format value with proper formatting
   const formatValue = (val: number) => {
     if (suffix === '%') return `${Math.round(val)}${suffix}`;
     if (prefix === '$') return `${prefix}${val.toLocaleString()}`;
@@ -455,7 +718,6 @@ function AnimatedCircularMetric({
 }
 
 
-// Event Card Component with improved design
 function EventCard({ event, formatEventDate }: { event: Event; formatEventDate: (d: string) => string }) {
   const attendancePercentage = Math.min(100, (event.attendees / event.maxAttendees) * 100);
   

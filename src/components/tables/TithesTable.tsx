@@ -19,6 +19,7 @@ export interface Tithe {
   amount: number;
   paymentDate: Date;
   paymentMethod: string;
+  paymentType: string;
   referenceNumber?: string;
   notes?: string;
 }
@@ -47,6 +48,7 @@ export function TithesTable({ tithes, onEdit, onDelete }: TithesTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Member Name</TableHead>
+            <TableHead>Payment Type</TableHead>
             <TableHead className="text-right">Amount</TableHead>
             <TableHead>Payment Date</TableHead>
             <TableHead>Payment Method</TableHead>
@@ -57,7 +59,7 @@ export function TithesTable({ tithes, onEdit, onDelete }: TithesTableProps) {
         <TableBody>
           {tithes.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-4">
+              <TableCell colSpan={8} className="text-center py-4">
                 No tithes recorded yet.
               </TableCell>
             </TableRow>
@@ -65,6 +67,7 @@ export function TithesTable({ tithes, onEdit, onDelete }: TithesTableProps) {
             tithes.map((tithe) => (
               <TableRow key={tithe.id}>
                 <TableCell className="font-medium">{tithe.memberName}</TableCell>
+                <TableCell>{tithe.paymentType}</TableCell>
                 <TableCell className="text-right">
                   ${tithe.amount.toFixed(2)}
                 </TableCell>

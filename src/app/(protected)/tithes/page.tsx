@@ -39,6 +39,7 @@ export default function TithesPage() {
             amount: 100,
             paymentDate: new Date('2023-10-15'),
             paymentMethod: 'Cash',
+            paymentType: 'Tithe',
             referenceNumber: 'T12345',
           },
           {
@@ -47,6 +48,7 @@ export default function TithesPage() {
             amount: 150,
             paymentDate: new Date('2023-10-10'),
             paymentMethod: 'Bank Transfer',
+            paymentType: 'Offering',
             referenceNumber: 'T12346',
           },
         ];
@@ -88,9 +90,9 @@ export default function TithesPage() {
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Tithes Management</h1>
+        <h1 className="text-2xl font-bold">Tithes & Offering Management</h1>
         <Button onClick={() => router.push('/tithes/add')}>
-          <Plus className="mr-2 h-4 w-4" /> Add Tithe
+          <Plus className="mr-2 h-4 w-4" /> Add Tithe/Offering
         </Button>
       </div>
 

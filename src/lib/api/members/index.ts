@@ -3,10 +3,10 @@ import {
   PaginatedMembers,
   CreateMemberDto,
   UpdateMemberDto,
-  MemberResponse
+  MemberCountResponse
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
 api.defaults.baseURL = API_BASE_URL;
 api.defaults.headers.common['Content-Type'] = 'application/json';
@@ -48,8 +48,8 @@ export const membersApi = {
    * Get a single member by ID
    * @param id Member ID
    */
-  async getMember(id: string): Promise<MemberResponse> {
-    const response = await api.get<MemberResponse>(`/members/${id}`);
+  async getMember(id: string): Promise<MemberCountResponse> {
+    const response = await api.get<MemberCountResponse>(`/members/${id}`);
     return response.data;
   },
 
@@ -57,8 +57,8 @@ export const membersApi = {
    * Create a new member
    * @param memberData Member data
    */
-  async createMember(memberData: CreateMemberDto): Promise<MemberResponse> {
-    const response = await api.post<MemberResponse>('/members', memberData);
+  async createMember(memberData: CreateMemberDto): Promise<MemberCountResponse> {
+    const response = await api.post<MemberCountResponse>('/members', memberData);
     return response.data;
   },
 
@@ -70,8 +70,8 @@ export const membersApi = {
   async updateMember(
   id: string, 
   memberData: UpdateMemberDto
-): Promise<MemberResponse> {
-  const response = await api.put<MemberResponse>(`/members/${id}`, memberData);
+): Promise<MemberCountResponse> {
+  const response = await api.put<MemberCountResponse>(`/members/${id}`, memberData);
   return response.data;
 },
 
@@ -97,6 +97,14 @@ export const membersApi = {
     const response = await api.get<PaginatedMembers>('/members/search', {
       params: { q: query, skip, take },
     });
+    return response.data;
+  },
+
+  /**
+   * Get total count of members and previous period count for comparison
+   */
+  async getTotalMembersCount(): Promise<MemberCountResponse> {
+    const response = await api.get<MemberCountResponse>('/members/count');
     return response.data;
   },
 };

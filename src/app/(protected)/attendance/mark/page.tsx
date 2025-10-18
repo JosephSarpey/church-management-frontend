@@ -6,20 +6,27 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Calendar as CalendarIcon, UserPlus, Users, Check, X } from 'lucide-react';
+import { Calendar as CalendarIcon, UserPlus, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
+import { attendanceApi } from '@/lib/api/attendance';
+import { membersApi } from '@/lib/api/members';
+import { Member as ApiMember } from '@/lib/api/members/types';
+import { CreateAttendanceDto, ServiceType } from '@/lib/api/attendance/types';
 
-interface Member {
+interface AttendanceMember extends Omit<ApiMember, 'id'> {
   id: string;
-  name: string;
-  memberId: string;
   status: 'present' | 'absent' | 'late' | 'excused';
-  isVisitor?: boolean;
+  isVisitor: boolean;
+  name: string;
+}
+
+interface Visitor extends Omit<AttendanceMember, 'id' | 'memberId' | 'membershipStatus'> {
+  id: string;
   contact?: string;
   address?: string;
 }
@@ -27,48 +34,71 @@ interface Member {
 export default function MarkAttendancePage() {
   const router = useRouter();
   const [date, setDate] = useState<Date>(new Date());
-  const [serviceType, setServiceType] = useState('Sunday Service');
+  const [serviceType, setServiceType] = useState<ServiceType>(ServiceType.SUNDAY_SERVICE);
   const [notes, setNotes] = useState('');
-  const [members, setMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<AttendanceMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddVisitor, setShowAddVisitor] = useState(false);
-  const [newVisitor, setNewVisitor] = useState<Omit<Member, 'id'>>({ 
-    name: '', 
-    memberId: `V${Date.now()}`,
-    status: 'present',
+  const [takenBy, setTakenBy] = useState('');
+  const [newVisitor, setNewVisitor] = useState<CreateAttendanceDto>({
+    visitorName: '',
     isVisitor: true,
+    serviceType: ServiceType.SUNDAY_SERVICE,
     contact: '',
     address: ''
   });
 
-  // Mock data - Replace with actual API call
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        // TODO: Replace with actual API call
-        const mockMembers: Member[] = [
-          { id: '1', name: 'John Doe', memberId: 'M001', status: 'present' },
-          { id: '2', name: 'Jane Smith', memberId: 'M002', status: 'absent' },
-          { id: '3', name: 'Robert Johnson', memberId: 'M003', status: 'present' },
-          { id: '4', name: 'Emily Davis', memberId: 'M004', status: 'late' },
-          { id: '5', name: 'Michael Brown', memberId: 'M005', status: 'excused' },
-          { id: '6', name: 'Sarah Wilson', memberId: 'M006', status: 'absent' },
-          { id: '7', name: 'David Taylor', memberId: 'M007', status: 'present' },
-        ];
-        setMembers(mockMembers);
+        setIsLoading(true);
+        const response = await membersApi.getMembers(0, 100);
+        
+        // Handle both direct array and paginated response formats
+        const membersData = Array.isArray(response) 
+          ? response // Direct array response
+          : response?.data; // Paginated response with data property
+        
+        if (Array.isArray(membersData)) {
+          // Transform API response to our attendance format
+          const membersList = membersData.map(member => ({
+            ...member,
+            status: 'absent' as const,
+            isVisitor: false,
+            name: `${member.firstName} ${member.lastName || ''}`.trim()
+          }));
+          
+          setMembers(membersList);
+        } else {
+          console.error('Unexpected API response format:', response);
+          toast.error('Invalid response format when loading members');
+          setMembers([]);
+        }
       } catch (error) {
         console.error('Error fetching members:', error);
+        toast.error('Failed to load members. Please try again.');
+        setMembers([]);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchMembers();
   }, []);
 
-  const filteredMembers = members.filter(member => 
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.memberId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMembers = members.filter(member => {
+    const searchLower = searchTerm.toLowerCase();
+    const memberName = member.name || `${member.firstName} ${member.lastName || ''}`.trim();
+    
+    return (
+      memberName.toLowerCase().includes(searchLower) ||
+      (member.memberNumber || '').toLowerCase().includes(searchLower) ||
+      (member.phone || '').toLowerCase().includes(searchLower) ||
+      (member.email || '').toLowerCase().includes(searchLower)
+    );
+  });
 
   const toggleMemberStatus = (id: string) => {
     setMembers(members.map(member => {
@@ -85,26 +115,89 @@ export default function MarkAttendancePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     
+    if (!date || !serviceType) {
+      toast.error('Please select a date and service type');
+      return;
+    }
+
+    const presentMembers = members.filter(m => m.status === 'present');
+    
+    if (presentMembers.length === 0) {
+      toast.error('Please mark at least one member as present');
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      // TODO: Replace with actual API call
-      console.log({
-        date,
-        serviceType,
-        notes,
-        attendance: members.map(member => ({
+      // Process members and visitors separately for better error handling
+      const memberAttendances = presentMembers
+        .filter(member => !member.isVisitor)
+        .map(member => ({
           memberId: member.id,
-          status: member.status
+          serviceType,
+          date: date.toISOString(),
+          notes: notes || undefined,
+          isVisitor: false,
+          takenBy: takenBy.trim()
+        } as const));
+
+      const visitorAttendances = presentMembers
+        .filter(member => member.isVisitor)
+        .map(visitor => ({
+          isVisitor: true,
+          visitorName: visitor.name,
+          contact: visitor.phone || undefined,
+          address: visitor.address || undefined,
+          serviceType,
+          date: date.toISOString(),
+          notes: notes || undefined,
+          takenBy: takenBy.trim()
+        } as const));
+
+      // Mark all attendances
+      const results = await Promise.allSettled([
+        ...memberAttendances.map(att => attendanceApi.markAttendance(att)),
+        ...visitorAttendances.map(att => attendanceApi.markAttendance(att))
+      ]);
+
+      // Check for any failed requests
+      const failed = results.filter(r => r.status === 'rejected');
+      if (failed.length > 0) {
+        console.error('Some attendances failed to save:', failed);
+        if (failed.length === results.length) {
+          throw new Error('Failed to save any attendance records');
+        }
+        toast.warning(`Saved ${results.length - failed.length} records, but ${failed.length} failed`);
+      } else {
+        toast.success(`Successfully marked ${results.length} attendance records`);
+      }
+
+      // Reset form
+      setMembers(prevMembers => 
+        prevMembers.map(m => ({
+          ...m,
+          status: 'absent',
+          // Keep visitor status but clear other fields if it was a visitor
+          ...(m.isVisitor ? { 
+            name: '',
+            phone: '',
+            address: '' 
+          } : {})
         }))
-      });
+      );
+      setDate(new Date());
+      setServiceType(ServiceType.SUNDAY_SERVICE);
+      setNotes('');
+      setSearchTerm('');
+      setShowAddVisitor(false);
+      setTakenBy('');
       
-      // Show success message and redirect
-      alert('Attendance recorded successfully!');
-      router.push('/attendance');
     } catch (error) {
-      console.error('Error recording attendance:', error);
-      alert('Failed to record attendance. Please try again.');
+      console.error('Error marking attendance:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to mark attendance';
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -120,32 +213,67 @@ export default function MarkAttendancePage() {
     }
   };
 
-  const handleAddVisitor = () => {
-    if (!newVisitor.name.trim()) return;
+  const handleAddVisitor = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    setMembers([
-      ...members,
-      {
-        ...newVisitor,
-        id: `visitor-${Date.now()}`,
-        memberId: `V${Date.now().toString().slice(-4)}`
-      }
-    ]);
-    
-    // Reset form
-    setNewVisitor({ 
-      name: '', 
-      memberId: `V${Date.now()}`,
-      status: 'present',
-      isVisitor: true,
-      contact: '',
-      address: ''
-    });
-    setShowAddVisitor(false);
+    if (!newVisitor.visitorName?.trim()) {
+      toast.error('Please enter visitor name');
+      return;
+    }
+
+    try {
+      // Create visitor in local state first for immediate UI feedback
+      const tempId = `temp-${Date.now()}`;
+      const newVisitorWithId: AttendanceMember = {
+        id: tempId,
+        firstName: newVisitor.visitorName.split(' ')[0] || 'Visitor',
+        lastName: newVisitor.visitorName.split(' ').slice(1).join(' ') || '',
+        memberNumber: 'VISITOR',
+        status: 'present',
+        isVisitor: true,
+        name: newVisitor.visitorName,
+        phone: newVisitor.contact || '',
+        address: newVisitor.address || '',
+        email: '',
+        dateOfBirth: '',
+        gender: 'OTHER',
+        maritalStatus: 'SINGLE',
+        membershipStatus: 'ACTIVE',
+        joinDate: new Date().toISOString(),
+        baptized: false,
+        occupation: '',
+        emergencyContact: '',
+        emergencyPhone: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      setMembers(prev => [...prev, newVisitorWithId]);
+      
+      // Reset form
+      setNewVisitor({
+        visitorName: '',
+        isVisitor: true,
+        serviceType: ServiceType.SUNDAY_SERVICE,
+        contact: '',
+        address: ''
+      });
+      setShowAddVisitor(false);
+      
+      toast.success('Visitor added to attendance list');
+    } catch (error) {
+      console.error('Error adding visitor:', error);
+      toast.error('Failed to add visitor. Please try again.');
+    }
   };
 
   const removeVisitor = (id: string) => {
-    setMembers(members.filter(member => member.id !== id));
+    // Only allow removing temporary visitors (not yet saved to the database)
+    if (id.startsWith('temp-')) {
+      setMembers(members.filter(member => member.id !== id));
+    } else {
+      toast.info('Please refresh the page to remove saved attendance records');
+    }
   };
 
   return (
@@ -165,7 +293,7 @@ export default function MarkAttendancePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="space-y-2">
             <Label htmlFor="date">Service Date</Label>
             <Popover>
@@ -213,14 +341,27 @@ export default function MarkAttendancePage() {
               id="serviceType"
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={serviceType}
-              onChange={(e) => setServiceType(e.target.value)}
+              onChange={(e) => setServiceType(e.target.value as ServiceType)}
             >
-              <option value="Sunday Service">Sunday Service</option>
-              <option value="Bible Study">Bible Study</option>
-              <option value="Prayer Meeting">Prayer Meeting</option>
-              <option value="Special Service">Special Service</option>
-              <option value="Other">Other</option>
+              {Object.entries(ServiceType).map(([key, value]) => (
+                <option key={value} value={value}>
+                  {key.split('_').map(word => 
+                    word.charAt(0) + word.slice(1).toLowerCase()
+                  ).join(' ')}
+                </option>
+              ))}
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Taken By *</Label>
+            <Input
+              id="takenBy"
+              placeholder="Your name"
+              value={takenBy}
+              onChange={(e) => setTakenBy(e.target.value)}
+              required
+            />
           </div>
 
           <div className="space-y-2">
@@ -278,8 +419,11 @@ export default function MarkAttendancePage() {
                   <Label>Visitor Name *</Label>
                   <Input
                     placeholder="Full name"
-                    value={newVisitor.name}
-                    onChange={(e) => setNewVisitor({...newVisitor, name: e.target.value})}
+                    value={newVisitor.visitorName || ''}
+                    onChange={(e) => setNewVisitor({
+                      ...newVisitor, 
+                      visitorName: e.target.value
+                    })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -302,7 +446,7 @@ export default function MarkAttendancePage() {
               <div className="flex justify-end gap-2">
                 <Button 
                   type="button" 
-                  variant="outline" 
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowAddVisitor(false)}
                 >
@@ -312,7 +456,7 @@ export default function MarkAttendancePage() {
                   type="button" 
                   size="sm"
                   onClick={handleAddVisitor}
-                  disabled={!newVisitor.name.trim()}
+                  disabled={!newVisitor.visitorName?.trim()}
                 >
                   Add Visitor
                 </Button>
@@ -341,13 +485,15 @@ export default function MarkAttendancePage() {
                           </span>
                         )}
                       </div>
-                      {member.isVisitor && member.contact && (
+                      {member.isVisitor && member.phone && (
                         <div className="text-xs text-muted-foreground">
-                          {member.contact}
+                          {member.phone}
                         </div>
                       )}
                     </td>
-                    <td className="p-3">{member.memberId}</td>
+                    <td className="p-3">
+                      {member.memberNumber || (member.isVisitor ? 'Visitor' : 'N/A')}
+                    </td>
                     <td className="p-3">
                       <div className="flex items-center justify-end gap-2">
                         {member.isVisitor && (

@@ -7,6 +7,11 @@ export interface PaginatedResponse<T> {
   take: number;
 }
 
+export interface MemberCountResponse {
+  count: number;
+  previousCount: number;
+}
+
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 export const GenderOptions = {
   MALE: 'Male',
