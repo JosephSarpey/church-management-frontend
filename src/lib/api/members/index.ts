@@ -3,7 +3,8 @@ import {
   PaginatedMembers,
   CreateMemberDto,
   UpdateMemberDto,
-  MemberCountResponse
+  MemberCountResponse,
+  Member
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
@@ -48,8 +49,8 @@ export const membersApi = {
    * Get a single member by ID
    * @param id Member ID
    */
-  async getMember(id: string): Promise<MemberCountResponse> {
-    const response = await api.get<MemberCountResponse>(`/members/${id}`);
+  async getMember(id: string): Promise<Member> {
+    const response = await api.get<Member>(`/members/${id}`);
     return response.data;
   },
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -17,6 +16,7 @@ import { CalendarIcon, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FamilyMembersInput } from '@/components/forms/FamilyMembersInput';
 import { membersApi } from '@/lib/api/members';
+import { Member } from '@/lib/api/members/types';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -73,14 +73,14 @@ export default function EditMemberPage() {
     const fetchMember = async () => {
       try {
         setIsLoading(true);
-        const member = await membersApi.getMember(id);
+        const member: Member = await membersApi.getMember(id);
         
         // Format dates and set form values
         reset({
           ...member,
-          dateOfBirth: member.dateOfBirth ? new Date(member.dateOfBirth) : new Date(),
+          dateOfBirth: member.dateOfBirth ? new Date(member.dateOfBirth) : undefined,
           joinDate: member.joinDate ? new Date(member.joinDate) : new Date(),
-          familyMembers: (member as any).familyMembers || [],
+          familyMembers: member.familyMembers || [],
         });
       } catch (error) {
         console.error('Error fetching member:', error);
