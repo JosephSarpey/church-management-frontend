@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -6,28 +5,74 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, Phone, Calendar, MapPin, Edit, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, MapPin, Edit, Trash2, Loader2, NotebookPen, HeartHandshake, PersonStandingIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { membersApi } from '@/lib/api/members';
-import { 
-  Member, 
-  GenderOptions, 
-  MembershipStatusOptions, 
-  MaritalStatusOptions,
-  Activity,
-  ActivityType 
+import { attendanceApi } from '@/lib/api/attendance';
+import {
+  Member,
+  GenderOptions,
+  MembershipStatusOptions,
+  MaritalStatusOptions
 } from '@/lib/api/members/types';
+import { ServiceType } from '@/lib/api/attendance/types';
 import { format } from 'date-fns';
+
+type ServiceTypeCount = {
+  [key: string]: number; 
+};
+
+interface AttendanceRecord {
+  id: string;
+  serviceType: ServiceType;
+  date: string;
+  notes?: string;
+  takenBy: string;
+  isVisitor: boolean;
+  visitorName?: string;
+  memberId?: string;
+  member?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+enum ActivityType {
+  NOTE = 'note',
+  ATTENDANCE = 'attendance',
+  TITHE = 'tithe',
+  OFFERING = 'offering',
+  UPDATE = 'update'
+}
 
 export default function MemberProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
+  const [attendanceStats, setAttendanceStats] = useState<{
+    last30Days: number;
+    lastService: string;
+    serviceTypes: ServiceTypeCount;
+  }>({
+    last30Days: 0,
+    lastService: '',
+    serviceTypes: {}
+  });
+  const [recentAttendances, setRecentAttendances] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setIsDeleting] = useState(false);
+
+  const [financialStats] = useState({
+    totalTithes: 0,
+    titheCount: 0,
+    totalOfferings: 0,
+    offeringCount: 0
+  });
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -43,8 +88,68 @@ export default function MemberProfilePage() {
       }
     };
 
+    const fetchAttendanceData = async () => {
+  if (!params.id) return;
+
+  try {
+    setLoadingAttendance(true);
+    // Get last 30 days attendance
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    console.log('Fetching attendance for member:', params.id);
+    console.log('Date range:', {
+      start: thirtyDaysAgo.toISOString(),
+      end: new Date().toISOString()
+    });
+
+    const response = await attendanceApi.getAttendances({
+      memberId: params.id,
+      startDate: thirtyDaysAgo.toISOString(),
+      limit: 100
+    });
+
+    console.log('Attendance API response:', response);
+
+    // Make sure response.data exists and is an array
+    const attendanceData = Array.isArray(response?.data) ? response.data : 
+                         (Array.isArray(response) ? response : []);
+    
+    console.log('Processed attendance data:', attendanceData);
+    console.log('Number of records found:', attendanceData.length);
+
+    const last30Days = attendanceData.length;
+    const lastAttendance = attendanceData[0];
+
+    const serviceTypes = attendanceData.reduce<ServiceTypeCount>((acc, record) => {
+  if (!record?.serviceType) return acc;
+  const serviceType = String(record.serviceType); // Ensure it's a string
+  const currentCount = acc[serviceType] || 0;
+  return {
+    ...acc,
+    [serviceType]: currentCount + 1
+  };
+}, {});
+
+    setAttendanceStats({
+      last30Days,
+      lastService: lastAttendance ? formatDate(lastAttendance.date) : 'No recent attendance',
+      serviceTypes
+    });
+
+    // Set recent attendances for activity feed
+    setRecentAttendances(attendanceData.slice(0, 5));
+
+  } catch (err) {
+    console.error('Error fetching attendance data:', err);
+  } finally {
+    setLoadingAttendance(false);
+  }
+};
+
     if (params.id) {
       fetchMember();
+      fetchAttendanceData();
     }
   }, [params.id]);
 
@@ -66,7 +171,7 @@ export default function MemberProfilePage() {
 
   const handleDelete = async () => {
     if (!member) return;
-    
+
     if (!confirm('Are you sure you want to delete this member? This action cannot be undone.')) {
       return;
     }
@@ -104,177 +209,300 @@ export default function MemberProfilePage() {
     );
   }
 
-  // Mock activities - replace with actual API call
-  const activities: Activity[] = [
-    {
-      id: '1',
-      type: 'attendance',
-      date: new Date().toISOString(),
-      title: 'Sunday Service',
-      present: true,
-      description: 'Morning service at Main Sanctuary'
-    },
-    {
-      id: '5',
-      type: 'attendance',
-      date: new Date(Date.now() - 7 * 86400000).toISOString(),
-      title: 'Sunday Service',
-      present: false,
-      description: 'Absent - Out of town'
-    },
-    // Add more activities here...
-  ];
-
-  // Calculate attendance percentage
-  const attendanceStats = (() => {
-    const allAttendance = activities.filter(a => a.type === 'attendance');
-    const presentCount = allAttendance.filter(a => a.present).length;
-    const totalCount = allAttendance.length;
-
-    return {
-      percentage: totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0,
-      presentCount,
-      totalCount
-    };
-  })();
-
-  // Calculate financial stats
-  const financialStats = (() => {
-    const tithes = activities.filter(a => a.type === 'tithe');
-    const offerings = activities.filter(a => a.type === 'offering');
-
-    return {
-      totalTithes: tithes.reduce((sum, a) => sum + (a.amount || 0), 0),
-      titheCount: tithes.length,
-      totalOfferings: offerings.reduce((sum, a) => sum + (a.amount || 0), 0),
-      offeringCount: offerings.length
-    };
-  })();
-
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <Button variant="outline" size="sm" onClick={() => router.push('/members')}>
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header with Back Button and Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => router.push('/members')}
+          className="w-fit"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Members
         </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.push(`/members/${member.id}/edit`)}>
-            <Edit className="mr-2 h-4 w-4" /> Edit Profile
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => router.push(`/members/${member.id}/edit`)}
+            className="flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" /> Edit Profile
           </Button>
-          <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={handleDelete}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-red-500 hover:text-red-600 hover:bg-red-50 flex items-center gap-2" 
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-4 w-4" /> Delete
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Left Column - Profile Card */}
-        <div className="md:w-1/3 space-y-4">
-          <div className="flex flex-col gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage 
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.firstName + ' ' + member.lastName)}&background=random`} 
+        <div className="lg:w-1/3 space-y-6">
+          <Card className="overflow-hidden">
+            {/* Profile Header with Gradient */}
+            <div className="h-2 bg-gradient-to-r from-primary to-blue-500"></div>
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="-mt-14 mb-4">
+                  <Avatar className="h-24 w-24 border-4 border-background">
+                    <AvatarImage
+                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(member.firstName + ' ' + member.lastName)}&background=4f46e5&color=fff`}
                       alt={`${member.firstName} ${member.lastName}`}
+                      className="object-cover"
                     />
-                    <AvatarFallback>{getInitials(member.firstName, member.lastName)}</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary text-2xl font-semibold">
+                      {getInitials(member.firstName, member.lastName)}
+                    </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <h1 className="text-2xl font-bold">{member.firstName} {member.lastName}</h1>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Badge variant={member.membershipStatus === 'ACTIVE' ? 'default' : 'secondary'}>
-                        {MembershipStatusOptions[member.membershipStatus as keyof typeof MembershipStatusOptions] || member.membershipStatus}
-                      </Badge>
-                      <p className="text-muted-foreground">Member since {formatDate(member.joinDate)}</p>
-                    </div>
+                </div>
+                <div className="w-full">
+                  <h1 className="text-2xl font-bold tracking-tight">{member.firstName} {member.lastName}</h1>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mt-2">
+                    <Badge 
+                      variant={member.membershipStatus === 'ACTIVE' ? 'default' : 'secondary'}
+                      className="w-fit"
+                    >
+                      {MembershipStatusOptions[member.membershipStatus as keyof typeof MembershipStatusOptions] || member.membershipStatus}
+                    </Badge>
+                    <p className="text-sm text-muted-foreground">
+                      Member since {formatDate(member.joinDate)}
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                <Separator className="my-6" />
+              <Separator className="my-6" />
 
-                <div className="space-y-4">
-                  {member.email && (
-                    <div className="flex items-start gap-3">
-                      <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
-                        <p>{member.email}</p>
-                      </div>
+              <div className="space-y-5">
+                {member.email && (
+                  <div className="flex items-start gap-3 group">
+                    <div className="p-2 rounded-lg bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                      <Mail className="h-5 w-5 text-primary" />
                     </div>
-                  )}
-                  {member.phone && (
-                    <div className="flex items-start gap-3">
-                      <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Phone</p>
-                        <p>{member.phone}</p>
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Email</p>
+                      <a 
+                        href={`mailto:${member.email}`} 
+                        className="text-foreground hover:text-primary hover:underline transition-colors"
+                      >
+                        {member.email}
+                      </a>
                     </div>
-                  )}
-                  {member.dateOfBirth && (
-                    <div className="flex items-start gap-3">
-                      <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Date of Birth</p>
-                        <p>{formatDate(member.dateOfBirth)}</p>
-                      </div>
+                  </div>
+                )}
+                
+                {member.phone && (
+                  <div className="flex items-start gap-3 group">
+                    <div className="p-2 rounded-lg bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                      <Phone className="h-5 w-5 text-primary" />
                     </div>
-                  )}
-                  {(member.address || member.city || member.state || member.country) && (
-                    <div className="flex items-start gap-3">
-                      <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Address</p>
-                        <p className="whitespace-pre-line">
-                          {[member.address, member.city, member.state, member.postalCode, member.country]
-                            .filter(Boolean)
-                            .join('\n')}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Phone</p>
+                      <a 
+                        href={`tel:${member.phone}`}
+                        className="text-foreground hover:text-primary hover:underline transition-colors"
+                      >
+                        {member.phone}
+                      </a>
                     </div>
-                  )}
-                  {member.gender && (
-                    <div className="flex items-start gap-3">
-                      <div className="h-5 w-5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Gender</p>
-                        <p>{GenderOptions[member.gender as keyof typeof GenderOptions] || member.gender}</p>
-                      </div>
+                  </div>
+                )}
+                
+                {member.dateOfBirth && (
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-primary/5">
+                      <Calendar className="h-5 w-5 text-primary" />
                     </div>
-                  )}
-                  {member.maritalStatus && (
-                    <div className="flex items-start gap-3">
-                      <div className="h-5 w-5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Marital Status</p>
-                        <p>{MaritalStatusOptions[member.maritalStatus as keyof typeof MaritalStatusOptions] || member.maritalStatus}</p>
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
+                      <p className="text-foreground">{formatDate(member.dateOfBirth)}</p>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  </div>
+                )}
+                
+                {(member.address || member.city || member.state || member.country) && (
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-primary/5">
+                      <MapPin className="h-5 w-5 text-primary flex-shrink-0" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Address</p>
+                      <address className="not-italic text-foreground">
+                        {[member.address, member.city, member.state, member.postalCode, member.country]
+                          .filter(Boolean)
+                          .map((line, i, arr) => (
+                            <span key={i}>
+                              {line}
+                              {i < arr.length - 1 && <br />}
+                            </span>
+                          ))}
+                      </address>
+                    </div>
+                  </div>
+                )}
+                
+                {(member.gender || member.maritalStatus) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                    {member.gender && (
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-primary/5">
+                          <div className="h-5 w-5 flex items-center justify-center">
+                            <PersonStandingIcon className="h-5 w-5 text-primary" />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Gender</p>
+                          <p className="text-foreground">{GenderOptions[member.gender as keyof typeof GenderOptions] || member.gender}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {member.maritalStatus && (
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-primary/5">
+                          <div className="h-5 w-5 flex items-center justify-center">
+                            <HeartHandshake className="text-primary" />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Marital Status</p>
+                          <p className="text-foreground">
+                            {MaritalStatusOptions[member.maritalStatus as keyof typeof MaritalStatusOptions] || member.maritalStatus}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Column - Additional Information */}
-        <div className="md:w-2/3 space-y-6">
-          {/* Family Members */}
-          {member.familyMembers && member.familyMembers.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Family Members</CardTitle>
+        <div className="lg:w-2/3 space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Attendance (30d)
+                  </CardTitle>
+                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                {loadingAttendance ? (
+                  <div className="h-8 flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{attendanceStats.last30Days}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {attendanceStats.last30Days > 0 ? 'Recent activity tracked' : 'No recent attendance'}
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Last Attended
+                  </CardTitle>
+                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingAttendance ? (
+                  <div className="h-8 flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">
+                      {attendanceStats.lastService || 'N/A'}
+                    </div>
+                    {recentAttendances[0]?.serviceType && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {ServiceType[recentAttendances[0].serviceType]?.replace('_', ' ')}
+                      </p>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Offerings
+                  </CardTitle>
+                  <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600 dark:text-purple-400">
+                      <line x1="12" y1="1" x2="12" y2="23"></line>
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${financialStats.totalOfferings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {financialStats.offeringCount} {financialStats.offeringCount === 1 ? 'donation' : 'donations'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Family Members */}
+          {member.familyMembers && member.familyMembers.length > 0 && (
+            <Card className="overflow-hidden">
+              <CardHeader className="bg-muted/20 border-b">
+                <CardTitle className="text-lg">Family Members</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y">
                   {member.familyMembers.map((familyMember) => (
-                    <div key={familyMember.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{familyMember.name}</p>
-                        <p className="text-sm text-muted-foreground">{familyMember.relationship}</p>
-                      </div>                      
+                    <div 
+                      key={familyMember.id} 
+                      className="flex items-center justify-between p-4 hover:bg-muted/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm font-medium text-primary">
+                            {familyMember.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{familyMember.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {familyMember.relationship}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-muted-foreground">
+                        View
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -284,81 +512,99 @@ export default function MemberProfilePage() {
 
           {/* Notes */}
           {member.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Notes</CardTitle>
+            <Card className="border-l-4 border-l-primary">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                  </svg>
+                  Notes
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="whitespace-pre-line">{member.notes}</p>
+                <div className="prose prose-sm max-w-none">
+                  <p className="text-foreground whitespace-pre-line">{member.notes}</p>
+                </div>
               </CardContent>
             </Card>
           )}
 
           {/* Activities */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Recent Activities</CardTitle>
-              <p className="text-sm text-muted-foreground">Member&apos;s recent activities and contributions</p>
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-muted/20 border-b">
+              <CardTitle className="text-lg">Recent Activities</CardTitle>
             </CardHeader>
-            <CardContent>
-              {activities.length ? (
-                <ActivityTimeline activities={activities} />
+            <CardContent className="p-0">
+              {loadingAttendance ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : recentAttendances.length > 0 ? (
+                <div className="p-4">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-4">Recent Attendance</h4>
+                  <ActivityTimeline 
+                    activities={recentAttendances.slice(0, 3).map(attendance => ({
+                      id: attendance.id,
+                      type: ActivityType.ATTENDANCE,
+                      title: `Attended ${ServiceType[attendance.serviceType]?.replace('_', ' ') || 'Service'}`,
+                      date: attendance.date,
+                      description: attendance.notes || '',
+                      icon: <NotebookPen className="h-4 w-4 text-primary" />,
+                      iconBackground: 'bg-primary/10',
+                      meta: `Recorded by ${attendance.takenBy}`
+                    }))} 
+                  />
+                </div>
               ) : (
-                <p className="text-muted-foreground text-center py-4">No activities found</p>
+                <div className="text-center py-12">
+                  <div className="mx-auto h-16 w-16 text-muted-foreground mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <line x1="23" y1="11" x2="17" y2="11"></line>
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-foreground mb-1">No recent activities</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    Attendance and other activities will appear here once recorded.
+                  </p>
+                </div>
               )}
             </CardContent>
+            
+            {/* Other Activities Section */}
+            <div className="border-t">
+              <div className="p-4 bg-muted/10">
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">Other Activities</h4>
+                <ActivityTimeline 
+                  activities={[
+                    {
+                      id: 'note-1',
+                      type: ActivityType.NOTE,
+                      title: 'Note added',
+                      date: '2023-05-10T14:15:00Z',
+                      description: 'Member requested prayer for family',
+                      icon: <NotebookPen className="h-4 w-4 text-primary" />,
+                      iconBackground: 'bg-primary/10',
+                      meta: 'Recorded by John Doe'
+                    },
+                    {
+                      id: 'update-1',
+                      type: ActivityType.UPDATE,
+                      title: 'Profile updated',
+                      date: '2023-05-01T09:45:00Z',
+                      description: 'Updated contact information',
+                      icon: <NotebookPen className="h-4 w-4 text-primary" />,
+                      iconBackground: 'bg-primary/10',
+                      meta: 'Recorded by John Doe'
+                    }
+                  ]} 
+                />
+              </div>
+            </div>
           </Card>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Attendance (Last 30 days)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {attendanceStats.percentage}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {attendanceStats.presentCount} of {attendanceStats.totalCount} services
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Tithes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${financialStats.totalTithes.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {financialStats.titheCount} transactions
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Offerings
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  ${financialStats.totalOfferings.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {financialStats.offeringCount} donations
-                </p>
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
     </div>

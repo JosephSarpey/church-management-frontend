@@ -71,7 +71,7 @@ export type UpdateMemberDto = Partial<CreateMemberDto>;
 export type MemberResponse = Member;
 export type PaginatedMembers = PaginatedResponse<Member>;
 
-export type ActivityType = 'attendance' | 'tithe' | 'offering' | 'note' | 'other';
+export type ActivityType = 'attendance' | 'tithe' | 'offering' | 'note' | 'update' | 'other';
 
 export interface Activity {
   id: string;
@@ -81,4 +81,7 @@ export interface Activity {
   description: string;
   present?: boolean;
   amount?: number;
+  icon?: React.ReactNode;
+  iconBackground?: string;
+  meta?: string;
 }

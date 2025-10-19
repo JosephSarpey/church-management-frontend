@@ -65,7 +65,7 @@ export default function MarkAttendancePage() {
           // Transform API response to our attendance format
           const membersList = membersData.map(member => ({
             ...member,
-            status: 'absent' as const,
+            status: 'present' as const,
             isVisitor: false,
             name: `${member.firstName} ${member.lastName || ''}`.trim()
           }));
@@ -178,7 +178,7 @@ export default function MarkAttendancePage() {
       setMembers(prevMembers => 
         prevMembers.map(m => ({
           ...m,
-          status: 'absent',
+          status: 'present',
           // Keep visitor status but clear other fields if it was a visitor
           ...(m.isVisitor ? { 
             name: '',

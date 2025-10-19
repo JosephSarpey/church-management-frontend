@@ -14,6 +14,7 @@ import { membersApi } from "@/lib/api/members";
 import { attendanceApi } from "@/lib/api/attendance";
 import { endOfDay, subDays } from "date-fns";
 import { toast } from "sonner";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 
 const CediSign = ({ className }: { className?: string }) => (
   <Image 
@@ -296,6 +297,10 @@ export default function DashboardPage() {
   };
 
   const circularColors = ["#4F46E5", "#3B82F6", "#10B981", "#F59E0B", "#EF4444"];
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8">
