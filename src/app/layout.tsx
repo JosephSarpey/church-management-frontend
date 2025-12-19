@@ -9,6 +9,8 @@ import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
+
+
 export const metadata: Metadata = {
   title: 'Zion Chapel Management System',
   description: 'Manage members, attendance, tithes, events, and reports',
