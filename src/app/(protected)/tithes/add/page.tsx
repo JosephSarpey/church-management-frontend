@@ -16,6 +16,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { tithesApi } from '@/lib/api';
+import type { CreateTitheDto, PaymentMethod, PaymentType } from '@/lib/api/tithes/types';
+import MemberSearch from '@/components/forms/MemberSearch';
+import type { Member } from '@/lib/api/members/types';
+
+const paymentTypeMap: Record<string, string> = {
+  Tithe: 'TITHE',
+  Offering: 'OFFERING',
+  Donation: 'DONATION',
+  Other: 'OTHER',
+};
+
+const paymentMethodMap: Record<string, string> = {
+  Cash: 'CASH',
+  'Bank Transfer': 'BANK_TRANSFER',
+  'Credit Card': 'CREDIT_CARD',
+  'Mobile Money': 'MOBILE_MONEY',
+  Other: 'OTHER',
+};
 
 export default function AddTithePage() {
   const router = useRouter();
@@ -29,6 +48,7 @@ export default function AddTithePage() {
     referenceNumber: '',
     notes: '',
   });
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -50,27 +70,28 @@ export default function AddTithePage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/tithes', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     ...formData,
-      //     amount: parseFloat(formData.amount),
-      //   }),
-      // });
+      // Use the selected member (autocomplete) to get memberId
+      if (!selectedMember) {
+        throw new Error('Please select a member from the search results');
+      }
+      const memberId = selectedMember.id;
 
-      // if (!response.ok) {
-      //   throw new Error('Failed to add tithe');
-      // }
+      const payload: CreateTitheDto = {
+        memberId,
+        amount: parseFloat(formData.amount),
+        // convert date-only input to full ISO datetime string
+        paymentDate: new Date(formData.paymentDate).toISOString(),
+        paymentMethod: (paymentMethodMap[formData.paymentMethod] || 'OTHER') as PaymentMethod,
+        paymentType: (paymentTypeMap[formData.paymentType] || 'OTHER') as PaymentType,
+        reference: formData.referenceNumber || undefined,
+        recordedBy: selectedMember.createdById || 'system',
+        notes: formData.notes || undefined,
+      };
 
-      // Mock success response
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await tithesApi.createTithe(payload);
+
       toast.success('Tithe record added successfully');
-      
+
       router.push('/tithes');
     } catch (error) {
       console.error('Error adding tithe:', error);
@@ -99,13 +120,12 @@ export default function AddTithePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="memberName">Member Name *</Label>
-                <Input
-                  id="memberName"
-                  name="memberName"
-                  value={formData.memberName}
-                  onChange={handleChange}
-                  placeholder="Enter member name"
-                  required
+                <MemberSearch
+                  defaultQuery={formData.memberName}
+                  onSelect={(m) => {
+                    setSelectedMember(m);
+                    setFormData((prev) => ({ ...prev, memberName: `${m.firstName} ${m.lastName}` }));
+                  }}
                 />
               </div>
 
@@ -119,9 +139,10 @@ export default function AddTithePage() {
                     <SelectValue placeholder="Select payment type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Cash">Tithe</SelectItem>
-                    <SelectItem value="Bank Transfer">Offering</SelectItem>
-                    
+                    <SelectItem value="Tithe">Tithe</SelectItem>
+                    <SelectItem value="Offering">Offering</SelectItem>
+                    <SelectItem value="Donation">Donation</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

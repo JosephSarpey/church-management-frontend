@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 
-export const columns: ColumnDef<Pastor>[] = [
+export const columns = (opts: { onDelete: (id: string) => void }): ColumnDef<Pastor>[] => [
   {
     accessorKey: "name",
     header: "Name",
@@ -36,7 +36,11 @@ export const columns: ColumnDef<Pastor>[] = [
               <Pencil className="h-4 w-4" />
             </Link>
           </Button>
-          <Button variant="destructive" size="icon">
+          <Button
+            variant="destructive"
+            size="icon"
+            onClick={() => opts.onDelete(pastor.id)}
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>

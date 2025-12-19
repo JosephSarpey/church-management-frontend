@@ -26,7 +26,6 @@ api.interceptors.request.use(
   }
 );
 
-
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
@@ -42,10 +41,9 @@ api.interceptors.response.use(
         headers: error.response.headers,
       });
     } else if (error.request) {
-      // The request was made but no response was received
       console.error('API Request Error:', error.request);
+      
     } else {
-      // Something happened in setting up the request that triggered an Error
       console.error('API Error:', error.message);
     }
     return Promise.reject(error);
@@ -56,7 +54,10 @@ export { api };
 
 export { membersApi } from './members';
 export { attendanceApi } from './attendance';
+export { pastorsApi } from './pastors';
+export { branchesApi } from './branches';
+export { tithesApi } from './tithes';
 // export * from './events';
-// export * from './tithes';
+
 
 export default api;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -7,22 +6,20 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BranchForm } from "@/components/forms/branch-form";
+import { branchesApi } from "@/lib/api/branches";
+import { CreateBranchDto } from "@/lib/api/branches/types";
 
 export default function AddBranchPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: CreateBranchDto) => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call
-      console.log("Submitting branch data:", data);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await branchesApi.createBranch(data);
       toast.success("Branch added successfully");
       router.push("/branches");
+      router.refresh();
     } catch (error) {
       console.error("Error adding branch:", error);
       toast.error("Failed to add branch");

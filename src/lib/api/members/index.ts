@@ -7,32 +7,12 @@ import {
   Member
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-
-api.defaults.baseURL = API_BASE_URL;
-api.defaults.headers.common['Content-Type'] = 'application/json';
-api.defaults.withCredentials = true;
-
-// Add a request interceptor to include auth token if available
-api.interceptors.request.use(
-  (config) => {
-    // You can add auth token here if needed
-    // const token = getTokenFromStorage();
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 /**
  * Members API client
  * Provides methods for interacting with the members API endpoints
  */
-export const membersApi = {
+export const membersApi = { 
   /**
    * Get paginated list of members
    * @param skip Number of records to skip (for pagination)
@@ -69,12 +49,12 @@ export const membersApi = {
    * @param memberData Partial member data with updates
    */
   async updateMember(
-  id: string, 
-  memberData: UpdateMemberDto
-): Promise<MemberCountResponse> {
-  const response = await api.put<MemberCountResponse>(`/members/${id}`, memberData);
-  return response.data;
-},
+    id: string,
+    memberData: UpdateMemberDto
+  ): Promise<MemberCountResponse> {
+    const response = await api.put<MemberCountResponse>(`/members/${id}`, memberData);
+    return response.data;
+  },
 
   /**
    * Delete a member
@@ -91,14 +71,29 @@ export const membersApi = {
    * @param take Number of records to take (page size)
    */
   async searchMembers(
-    query: string, 
-    skip = 0, 
+    query: string,
+    skip = 0,
     take = 50
   ): Promise<PaginatedMembers> {
-    const response = await api.get<PaginatedMembers>('/members/search', {
-      params: { q: query, skip, take },
+    // Backend does not expose a dedicated /members/search endpoint.
+    // Fall back to requesting the members list and filter client-side.
+    const response = await api.get<Member[]>(`/members`, {
+      params: { skip, take },
     });
-    return response.data;
+
+    const all: Member[] = response.data || [];
+    const q = (query || '').toLowerCase();
+    const filtered = all.filter((m) => {
+      const full = `${m.firstName || ''} ${m.lastName || ''}`.toLowerCase();
+      return full.includes(q) || (m.email || '').toLowerCase().includes(q) || (m.phone || '').toLowerCase().includes(q) || (m.memberNumber || '').toLowerCase().includes(q);
+    });
+
+    return {
+      data: filtered,
+      total: filtered.length,
+      skip,
+      take,
+    } as PaginatedMembers;
   },
 
   /**
@@ -110,4 +105,4 @@ export const membersApi = {
   },
 };
 
-export default api;
+export default membersApi;

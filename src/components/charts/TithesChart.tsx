@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import {
@@ -12,9 +13,9 @@ import {
   Legend,
 } from "recharts";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { tithesApi } from "@/lib/api/tithes";
 
-// 🎨 Modern rhythmic SaaS color palette
 const COLORS = [
   "#3B82F6", // blue-500
   "#6366F1", // indigo-500
@@ -33,18 +34,69 @@ const HOVER_COLORS = [
   "#0284C7", // sky-600
 ];
 
-const data = [
-  { name: "Jan", amount: 1200 },
-  { name: "Feb", amount: 1500 },
-  { name: "Mar", amount: 1000 },
-  { name: "Apr", amount: 1800 },
-  { name: "May", amount: 1600 },
-  { name: "Jun", amount: 2000 },
-];
 
 export function TithesChart() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [data, setData] = useState<Array<{ name: string; amount: number }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const end = new Date();
+        const start = new Date(end.getFullYear(), end.getMonth() - 5, 1); // last 6 months
+
+        const tithes = await tithesApi.getTithes({
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+        });
+
+        const months: Date[] = [];
+        for (let i = 0; i < 6; i++) {
+          months.push(new Date(start.getFullYear(), start.getMonth() + i, 1));
+        }
+
+        const monthKeys = months.map(
+          (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        );
+
+        const sums: Record<string, number> = {};
+        monthKeys.forEach((k) => (sums[k] = 0));
+
+        if (Array.isArray(tithes)) {
+          for (const t of tithes) {
+            if (t.paymentType !== 'TITHE') continue;
+            const pd = t.paymentDate || t.createdAt;
+            if (!pd) continue;
+            const dt = new Date(pd);
+            const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+            if (key in sums) sums[key] += t.amount || 0;
+          }
+        }
+
+        const result = months.map((d) => {
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          return { name: d.toLocaleString(undefined, { month: 'short' }), amount: Math.round(sums[key] || 0) };
+        });
+
+        if (mounted) setData(result);
+      } catch (err) {
+        console.error('Failed to load tithes chart data', err);
+        if (mounted) setError('Failed to load tithes');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <motion.div
@@ -95,7 +147,7 @@ export function TithesChart() {
 
             {/* Y Axis */}
             <YAxis
-              tickFormatter={(value) => `$${value}`}
+              tickFormatter={(value) => `₵${value}`}
               tick={{ fill: "currentColor", fontSize: 12 }}
               axisLine={false}
               tickLine={false}
@@ -113,7 +165,7 @@ export function TithesChart() {
                       <p className="text-xs text-muted-foreground mt-1">
                         Amount:{" "}
                         <span className="font-semibold text-foreground">
-                          ${payload[0].value.toLocaleString()}
+                          ₵{payload[0].value.toLocaleString()}
                         </span>
                       </p>
                     </div>

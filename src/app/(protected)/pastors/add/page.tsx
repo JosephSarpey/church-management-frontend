@@ -1,23 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useRouter } from "next/navigation";
 import { PastorForm } from "@/components/forms/pastor-form";
 import { toast } from "sonner";
 import { CreatePastorDto } from "@/lib/api/pastors/types";
+import { pastorsApi } from "@/lib/api/pastors";
 
 export default function AddPastorPage() {
   const router = useRouter();
 
   const handleSubmit = async (data: CreatePastorDto) => {
     try {
-      // TODO: Replace with actual API call
-      // const res = await fetch('/api/pastors', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(data),
-      // });
-      // if (!res.ok) throw new Error('Failed to create pastor');
+      await pastorsApi.createPastor(data);
       
       toast.success('Pastor created successfully');
       router.push('/pastors');

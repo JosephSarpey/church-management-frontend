@@ -5,12 +5,14 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, Phone, Calendar, MapPin, Edit, Trash2, Loader2, NotebookPen, HeartHandshake, PersonStandingIcon } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, MapPin, Edit, Trash2, Loader2, NotebookPen, HeartHandshake, PersonStandingIcon, FileChartColumnIncreasing } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ActivityTimeline } from '@/components/ActivityTimeline';
 import { membersApi } from '@/lib/api/members';
 import { attendanceApi } from '@/lib/api/attendance';
+import { tithesApi } from '@/lib/api/tithes';
+import { Tithe, PaymentTypeOptions } from '@/lib/api/tithes/types';
 import {
   Member,
   GenderOptions,
@@ -67,12 +69,14 @@ export default function MemberProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [, setIsDeleting] = useState(false);
 
-  const [financialStats] = useState({
+  const [financialStats, setFinancialStats] = useState({
     totalTithes: 0,
     titheCount: 0,
     totalOfferings: 0,
     offeringCount: 0
   });
+  const [loadingFinancials, setLoadingFinancials] = useState(true);
+  const [recentFinances, setRecentFinances] = useState<Tithe[]>([]);
 
   useEffect(() => {
     const fetchMember = async () => {
@@ -89,67 +93,86 @@ export default function MemberProfilePage() {
     };
 
     const fetchAttendanceData = async () => {
-  if (!params.id) return;
+      if (!params.id) return;
+      try {
+        setLoadingAttendance(true);
+        // Get last 30 days attendance
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  try {
-    setLoadingAttendance(true);
-    // Get last 30 days attendance
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const response = await attendanceApi.getAttendances({
+          memberId: params.id,
+          startDate: thirtyDaysAgo.toISOString(),
+          limit: 100
+        });
 
-    console.log('Fetching attendance for member:', params.id);
-    console.log('Date range:', {
-      start: thirtyDaysAgo.toISOString(),
-      end: new Date().toISOString()
-    });
+        const attendanceData = Array.isArray(response?.data) ? response.data :
+          (Array.isArray(response) ? response : []);
 
-    const response = await attendanceApi.getAttendances({
-      memberId: params.id,
-      startDate: thirtyDaysAgo.toISOString(),
-      limit: 100
-    });
+        const last30Days = attendanceData.length;
+        const lastAttendance = attendanceData[0];
 
-    console.log('Attendance API response:', response);
+        const serviceTypes = attendanceData.reduce<ServiceTypeCount>((acc, record) => {
+          if (!record?.serviceType) return acc;
+          const serviceType = String(record.serviceType);
+          const currentCount = acc[serviceType] || 0;
+          return {
+            ...acc,
+            [serviceType]: currentCount + 1
+          };
+        }, {});
 
-    // Make sure response.data exists and is an array
-    const attendanceData = Array.isArray(response?.data) ? response.data : 
-                         (Array.isArray(response) ? response : []);
-    
-    console.log('Processed attendance data:', attendanceData);
-    console.log('Number of records found:', attendanceData.length);
+        setAttendanceStats({
+          last30Days,
+          lastService: lastAttendance ? formatDate(lastAttendance.date) : 'No recent attendance',
+          serviceTypes
+        });
 
-    const last30Days = attendanceData.length;
-    const lastAttendance = attendanceData[0];
+        // Set recent attendances for activity feed
+        setRecentAttendances(attendanceData.slice(0, 5));
 
-    const serviceTypes = attendanceData.reduce<ServiceTypeCount>((acc, record) => {
-  if (!record?.serviceType) return acc;
-  const serviceType = String(record.serviceType); // Ensure it's a string
-  const currentCount = acc[serviceType] || 0;
-  return {
-    ...acc,
-    [serviceType]: currentCount + 1
-  };
-}, {});
+      } catch (err) {
+        console.error('Error fetching attendance data:', err);
+      } finally {
+        setLoadingAttendance(false);
+      }
+    };
 
-    setAttendanceStats({
-      last30Days,
-      lastService: lastAttendance ? formatDate(lastAttendance.date) : 'No recent attendance',
-      serviceTypes
-    });
+    const fetchFinancialData = async () => {
+      if (!params.id) return;
+      try {
+        setLoadingFinancials(true);
+        const tithes = await tithesApi.getTithes({ memberId: params.id });
 
-    // Set recent attendances for activity feed
-    setRecentAttendances(attendanceData.slice(0, 5));
+        const totalTithes = (tithes || [])
+          .filter(t => t.paymentType === 'TITHE')
+          .reduce((s, t) => s + (t.amount || 0), 0);
 
-  } catch (err) {
-    console.error('Error fetching attendance data:', err);
-  } finally {
-    setLoadingAttendance(false);
-  }
-};
+        const titheCount = (tithes || []).filter(t => t.paymentType === 'TITHE').length;
+
+        const totalOfferings = (tithes || [])
+          .filter(t => t.paymentType === 'OFFERING')
+          .reduce((s, t) => s + (t.amount || 0), 0);
+
+        const offeringCount = (tithes || []).filter(t => t.paymentType === 'OFFERING').length;
+
+        setFinancialStats({ totalTithes, titheCount, totalOfferings, offeringCount });
+        const recent = (tithes || [])
+          .slice()
+          .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+          .slice(0, 5);
+        setRecentFinances(recent);
+      } catch (err) {
+        console.error('Error fetching financial data (tithes):', err);
+      } finally {
+        setLoadingFinancials(false);
+      }
+    };
 
     if (params.id) {
       fetchMember();
       fetchAttendanceData();
+      fetchFinancialData();
     }
   }, [params.id]);
 
@@ -246,7 +269,7 @@ export default function MemberProfilePage() {
         <div className="lg:w-1/3 space-y-6">
           <Card className="overflow-hidden">
             {/* Profile Header with Gradient */}
-            <div className="h-2 bg-gradient-to-r from-primary to-blue-500"></div>
+            <div className="h-2 bg-gradient-to-r "></div>
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center">
                 <div className="-mt-14 mb-4">
@@ -396,7 +419,7 @@ export default function MemberProfilePage() {
                     Attendance (30d)
                   </CardTitle>
                   <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <Calendar className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                   </div>
                 </div>
               </CardHeader>
@@ -423,7 +446,7 @@ export default function MemberProfilePage() {
                     Last Attended
                   </CardTitle>
                   <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 dark:text-amber-400">
                       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                     </svg>
                   </div>
@@ -453,23 +476,29 @@ export default function MemberProfilePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Total Offerings
+                    Contributions
                   </CardTitle>
                   <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-600 dark:text-purple-400">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                    </svg>
+                    <FileChartColumnIncreasing className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  ${financialStats.totalOfferings.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {financialStats.offeringCount} {financialStats.offeringCount === 1 ? 'donation' : 'donations'}
-                </p>
+                {loadingFinancials ? (
+                  <div className="h-8 flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">
+                      ₵{(financialStats.totalTithes + financialStats.totalOfferings).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="mr-3">Tithes: ₵{financialStats.totalTithes.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({financialStats.titheCount})</span>
+                      <span>Offerings: ₵{financialStats.totalOfferings.toLocaleString(undefined, { minimumFractionDigits: 2 })} ({financialStats.offeringCount})</span>
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -500,9 +529,6 @@ export default function MemberProfilePage() {
                           </p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-muted-foreground">
-                        View
-                      </Button>
                     </div>
                   ))}
                 </div>
@@ -578,28 +604,41 @@ export default function MemberProfilePage() {
               <div className="p-4 bg-muted/10">
                 <h4 className="text-sm font-medium text-muted-foreground mb-3">Other Activities</h4>
                 <ActivityTimeline 
-                  activities={[
-                    {
-                      id: 'note-1',
-                      type: ActivityType.NOTE,
-                      title: 'Note added',
-                      date: '2023-05-10T14:15:00Z',
-                      description: 'Member requested prayer for family',
-                      icon: <NotebookPen className="h-4 w-4 text-primary" />,
-                      iconBackground: 'bg-primary/10',
-                      meta: 'Recorded by John Doe'
-                    },
-                    {
-                      id: 'update-1',
-                      type: ActivityType.UPDATE,
-                      title: 'Profile updated',
-                      date: '2023-05-01T09:45:00Z',
-                      description: 'Updated contact information',
-                      icon: <NotebookPen className="h-4 w-4 text-primary" />,
-                      iconBackground: 'bg-primary/10',
-                      meta: 'Recorded by John Doe'
-                    }
-                  ]} 
+                  activities={
+                    recentFinances && recentFinances.length > 0
+                      ? recentFinances.map(f => ({
+                          id: f.id,
+                          type: f.paymentType === 'TITHE' ? ActivityType.TITHE : ActivityType.OFFERING,
+                          title: `${PaymentTypeOptions[f.paymentType as keyof typeof PaymentTypeOptions] || f.paymentType} — $${f.amount.toFixed(2)}`,
+                          date: f.paymentDate,
+                          description: f.notes || f.reference || '',
+                          icon: <NotebookPen className="h-4 w-4 text-primary" />,
+                          iconBackground: 'bg-primary/10',
+                          meta: `Recorded by ${f.recordedBy}`
+                        }))
+                      : [
+                          {
+                            id: 'note-1',
+                            type: ActivityType.NOTE,
+                            title: 'Note added',
+                            date: '2023-05-10T14:15:00Z',
+                            description: 'Member requested prayer for family',
+                            icon: <NotebookPen className="h-4 w-4 text-primary" />,
+                            iconBackground: 'bg-primary/10',
+                            meta: 'Recorded by John Doe'
+                          },
+                          {
+                            id: 'update-1',
+                            type: ActivityType.UPDATE,
+                            title: 'Profile updated',
+                            date: '2023-05-01T09:45:00Z',
+                            description: 'Updated contact information',
+                            icon: <NotebookPen className="h-4 w-4 text-primary" />,
+                            iconBackground: 'bg-primary/10',
+                            meta: 'Recorded by John Doe'
+                          }
+                        ]
+                  }
                 />
               </div>
             </div>

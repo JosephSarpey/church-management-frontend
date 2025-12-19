@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,56 +6,22 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BranchForm } from "@/components/forms/branch-form";
-
-// Dummy data - replace with actual API call
-const getBranchById = (id: string) => {
-  const branches = [
-    { 
-      id: "1", 
-      name: "Main Branch", 
-      memberCount: 150, 
-      income: 50000, 
-      expenditure: 35000, 
-      events: "Sunday Service\nBible Study\nPrayer Meeting", 
-      currentProject: "Church Renovation",
-      description: "The main branch of our church, established in 2010.",
-      address: "123 Church St, Anytown, AN 12345"
-    },
-    { 
-      id: "2", 
-      name: "North Branch", 
-      memberCount: 85, 
-      income: 25000, 
-      expenditure: 20000, 
-      events: "Sunday Service\nYouth Gathering", 
-      currentProject: "Community Outreach",
-      description: "Our northern branch serving the local community.",
-      address: "456 North Ave, Somewhere, AN 67890"
-    },
-  ];
-  
-  return branches.find(branch => branch.id === id) || null;
-};
+import { branchesApi } from "@/lib/api/branches";
+import { Branch, UpdateBranchDto } from "@/lib/api/branches/types";
 
 export default function EditBranchPage() {
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [branch, setBranch] = useState<any>(null);
+  const [branch, setBranch] = useState<Branch | null>(null);
 
   useEffect(() => {
-    // Simulate API call to fetch branch data
     const fetchBranch = async () => {
       try {
         setLoading(true);
-        // In a real app, you would fetch the branch data from your API
-        const data = getBranchById(params.id as string);
-        if (data) {
-          setBranch(data);
-        } else {
-          toast.error("Branch not found");
-          router.push("/branches");
-        }
+        const id = Array.isArray(params.id) ? params.id[0] : (params.id as string);
+        const data = await branchesApi.getBranch(id);
+        setBranch(data);
       } catch (error) {
         console.error("Error fetching branch:", error);
         toast.error("Failed to load branch data");
@@ -69,17 +34,14 @@ export default function EditBranchPage() {
     fetchBranch();
   }, [params.id, router]);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: UpdateBranchDto) => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call
-      console.log("Updating branch data:", data);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const id = Array.isArray(params.id) ? params.id[0] : (params.id as string);
+      await branchesApi.updateBranch(id, data);
       toast.success("Branch updated successfully");
-      router.push(`/branches/${params.id}`);
+      router.push(`/branches/${id}`);
+      router.refresh();
     } catch (error) {
       console.error("Error updating branch:", error);
       toast.error("Failed to update branch");

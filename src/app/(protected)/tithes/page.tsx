@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { tithesApi } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import {
@@ -14,46 +15,59 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus } from 'lucide-react';
 import { TithesTable } from '@/components/tables/TithesTable';
-import { Tithe } from '@/components/tables/TithesTable';
+import { Tithe as TableTithe } from '@/components/tables/TithesTable';
 
 export default function TithesPage() {
   const router = useRouter();
-  const [tithes, setTithes] = useState<Tithe[]>([]);
+  const [tithes, setTithes] = useState<TableTithe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
 
-  // Fetch tithes from API
+  
   useEffect(() => {
     const fetchTithes = async () => {
       try {
-        // TODO: Replace with actual API call
-        // const response = await fetch('/api/tithes');
-        // const data = await response.json();
-        
-        // Mock data for now
-        const mockTithes: Tithe[] = [
-          {
-            id: '1',
-            memberName: 'John Doe',
-            amount: 100,
-            paymentDate: new Date('2023-10-15'),
-            paymentMethod: 'Cash',
-            paymentType: 'Tithe',
-            referenceNumber: 'T12345',
-          },
-          {
-            id: '2',
-            memberName: 'Jane Smith',
-            amount: 150,
-            paymentDate: new Date('2023-10-10'),
-            paymentMethod: 'Bank Transfer',
-            paymentType: 'Offering',
-            referenceNumber: 'T12346',
-          },
-        ];
-        
-        setTithes(mockTithes);
+        setIsLoading(true);
+        const data = await tithesApi.getTithes();
+
+        // Map backend shape to table-compatible shape
+        const mapped = data.map((t) => {
+          const paymentMethod =
+            t.paymentMethod === 'CASH'
+              ? 'Cash'
+              : t.paymentMethod === 'BANK_TRANSFER'
+              ? 'Bank Transfer'
+              : t.paymentMethod === 'CREDIT_CARD'
+              ? 'Credit Card'
+              : t.paymentMethod === 'MOBILE_MONEY'
+              ? 'Mobile Money'
+              : 'Other';
+
+          const paymentType =
+            t.paymentType === 'TITHE'
+              ? 'Tithe'
+              : t.paymentType === 'OFFERING'
+              ? 'Offering'
+              : t.paymentType === 'DONATION'
+              ? 'Donation'
+              : 'Other';
+
+          const tableTithe: TableTithe = {
+            id: t.id,
+            memberName: t.memberName || '',
+            amount: t.amount,
+            paymentDate: new Date(t.paymentDate),
+            paymentMethod,
+            paymentType,
+            referenceNumber: t.reference || undefined,
+            notes: t.notes,
+          };
+
+          return tableTithe;
+        });
+
+        setTithes(mapped);
       } catch (error) {
         console.error('Error fetching tithes:', error);
       } finally {
@@ -64,15 +78,14 @@ export default function TithesPage() {
     fetchTithes();
   }, []);
 
-  const handleEdit = (tithe: Tithe) => {
-    router.push(`/tithes/edit/${tithe.id}`);
+  const handleEdit = (tithe: TableTithe) => {
+    router.push(`/tithes/${tithe.id}/edit`);
   };
 
   const handleDelete = async (id: string) => {
     try {
-      // TODO: Replace with actual API call
-      // await fetch(`/api/tithes/${id}`, { method: 'DELETE' });
-      setTithes(tithes.filter((tithe) => tithe.id !== id));
+      await tithesApi.deleteTithe(id);
+      setTithes((prev) => prev.filter((t) => t.id !== id));
     } catch (error) {
       console.error('Error deleting tithe:', error);
     }

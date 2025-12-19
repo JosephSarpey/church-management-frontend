@@ -1,49 +1,66 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { notFound } from "next/navigation";
-import { Metadata } from "next";
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Edit } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
+import { pastorsApi } from "@/lib/api/pastors";
+import { Pastor } from "@/lib/api/pastors/types";
+import { toast } from "sonner";
 
-interface PastorDetailPageProps {
-  params: {
-    id: string;
-  };
-}
+export default function PastorDetailPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const [pastor, setPastor] = useState<Pastor | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export async function generateMetadata({ params: _params }: PastorDetailPageProps): Promise<Metadata> {
-  // In a real app, you would fetch the pastor's name here
-  const pastorName = "Pastor Name"; // Replace with actual data fetch
-  return {
-    title: `${pastorName} | Pastor Details`,
-  };
-}
+  useEffect(() => {
+    const fetchPastor = async () => {
+      try {
+        setLoading(true);
+        const data = await pastorsApi.getPastor(params.id);
+        setPastor(data);
+      } catch (error) {
+        console.error("Error fetching pastor:", error);
+        toast.error("Failed to load pastor");
+        setPastor(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-async function getPastor(id: string) {
-  // TODO: Replace with actual API call
-  // const res = await fetch(`/api/pastors/${id}`);
-  // if (!res.ok) return null;
-  // return res.json();
-  
-  // Mock data
-  return {
-    id,
-    name: "John Doe",
-    dateAppointed: "2020-01-15",
-    currentStation: "Main Branch",
-    createdAt: "2020-01-15T00:00:00.000Z",
-    updatedAt: "2023-01-15T00:00:00.000Z",
-  };
-}
+    if (params.id) {
+      fetchPastor();
+    }
+  }, [params.id]);
 
-export default async function PastorDetailPage({ params }: PastorDetailPageProps) {
-  const pastor = await getPastor(params.id);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!pastor) {
-    notFound();
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-semibold">Pastor not found</h2>
+        <p className="text-muted-foreground mt-2">The requested pastor could not be found</p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => router.push("/pastors")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to pastors
+        </Button>
+      </div>
+    );
   }
 
   const formattedDate = format(new Date(pastor.dateAppointed), "MMMM d, yyyy");
@@ -59,6 +76,7 @@ export default async function PastorDetailPage({ params }: PastorDetailPageProps
           </Button>
           <h1 className="text-3xl font-bold tracking-tight">Pastor Details</h1>
         </div>
+
         <Button asChild>
           <Link href={`/pastors/${pastor.id}/edit`} className="flex items-center gap-2">
             <Edit className="h-4 w-4" />

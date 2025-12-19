@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/Button";
+
 import {
   Form,
   FormControl,
@@ -20,6 +21,9 @@ const formSchema = z.object({
   name: z.string().min(2, {
     message: "Name must be at least 2 characters.",
   }),
+  pastorId: z.string().min(1, {
+    message: "Pastor ID is required.",
+  }),
   memberCount: z.coerce.number().min(0, {
     message: "Number of members cannot be negative.",
   }),
@@ -27,16 +31,20 @@ const formSchema = z.object({
     message: "Income cannot be negative.",
   }),
   expenditure: z.coerce.number().min(0, {
-  }).min(0, {
     message: "Expenditure cannot be negative.",
   }),
-  events: z.string().optional(),
-  currentProject: z.string().optional(),
+  events: z.string().min(1, {
+    message: "Please enter at least one event.",
+  }),
+  currentProject: z.string().min(1, {
+    message: "Please enter the current project.",
+  }),
   address: z.string().min(5, {
     message: "Please enter a valid address.",
   }),
-  description: z.string().optional(),
-  pastor: z.string().optional(),
+  description: z.string().min(1, {
+    message: "Please enter a description.",
+  }),
 });
 
 type BranchFormValues = z.infer<typeof formSchema>;
@@ -52,6 +60,7 @@ export function BranchForm({ onSubmit, loading, initialData }: BranchFormProps) 
     resolver: zodResolver(formSchema as any),
     defaultValues: {
       name: "",
+      pastorId: "",
       memberCount: 0,
       income: 0,
       expenditure: 0,
@@ -59,7 +68,6 @@ export function BranchForm({ onSubmit, loading, initialData }: BranchFormProps) 
       currentProject: "",
       address: "",
       description: "",
-      pastor: "",
       ...initialData,
     },
   });
@@ -83,10 +91,10 @@ export function BranchForm({ onSubmit, loading, initialData }: BranchFormProps) 
           />
           <FormField
             control={form.control}
-            name="pastor"
+            name="pastorId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Branch Pastor</FormLabel>
+                <FormLabel>Branch Pastor ID</FormLabel>
                 <FormControl>
                   <Input type="text" {...field} />
                 </FormControl>
@@ -112,7 +120,7 @@ export function BranchForm({ onSubmit, loading, initialData }: BranchFormProps) 
             name="income"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Income ($)</FormLabel>
+                <FormLabel>Income (₵)</FormLabel>
                 <FormControl>
                   <Input type="number" min={0} step="0.01" {...field} />
                 </FormControl>
@@ -125,7 +133,7 @@ export function BranchForm({ onSubmit, loading, initialData }: BranchFormProps) 
             name="expenditure"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Expenditure ($)</FormLabel>
+                <FormLabel>Expenditure (₵)</FormLabel>
                 <FormControl>
                   <Input type="number" min={0} step="0.01" {...field} />
                 </FormControl>

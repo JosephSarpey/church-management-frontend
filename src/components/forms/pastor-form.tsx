@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -43,9 +42,12 @@ interface PastorFormProps {
 export const PastorForm: React.FC<PastorFormProps> = ({
     initialData,
     isEdit = false,
+    loading: externalLoading,
+    onSubmit: onSubmitProp,
 }) => {
     const [loading, setLoading] = useState(false);
-    const router = useRouter();
+
+    const isLoading = externalLoading ?? loading;
 
     const form = useForm<PastorFormValues>({
         resolver: zodResolver(formSchema),
@@ -59,17 +61,7 @@ export const PastorForm: React.FC<PastorFormProps> = ({
         try {
             setLoading(true);
             console.log("Submitting pastor data:", data);
-            if (isEdit) {
-                // Update pastor
-                // TODO: Implement update API call
-                toast.success("Pastor updated successfully!");
-            } else {
-                // Create new pastor
-                // TODO: Implement create API call
-                toast.success("Pastor added successfully!");
-            }
-            router.refresh();
-            router.push(`/pastors`);
+            await onSubmitProp(data);
         } catch (error) {
             console.error("Error submitting form:", error);
             toast.error("Something went wrong. Please try again.");
@@ -90,7 +82,7 @@ export const PastorForm: React.FC<PastorFormProps> = ({
                                 <FormLabel>Name</FormLabel>
                                 <FormControl>
                                     <Input
-                                        disabled={loading}
+                                        disabled={isLoading}
                                         placeholder="Pastor's full name"
                                         {...field}
                                     />
@@ -109,7 +101,7 @@ export const PastorForm: React.FC<PastorFormProps> = ({
                                 <FormControl>
                                     <Input
                                         type="date"
-                                        disabled={loading}
+                                        disabled={isLoading}
                                         {...field}
                                     />
                                 </FormControl>
@@ -126,7 +118,7 @@ export const PastorForm: React.FC<PastorFormProps> = ({
                                 <FormLabel>Current Station/Branch</FormLabel>
                                 <FormControl>
                                     <Input
-                                        disabled={loading}
+                                        disabled={isLoading}
                                         placeholder="Current station or branch"
                                         {...field}
                                     />
@@ -135,14 +127,16 @@ export const PastorForm: React.FC<PastorFormProps> = ({
                             </FormItem>
                         )}
                     />
+
+                    
                 </div>
 
                 <Button
-                    disabled={loading}
+                    disabled={isLoading}
                     type="submit"
                     className="ml-auto"
                 >
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isEdit ? 'Save changes' : 'Add Pastor'}
                 </Button>
             </form>

@@ -12,6 +12,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { membersApi } from "@/lib/api/members";
 import { attendanceApi } from "@/lib/api/attendance";
+import { tithesApi } from "@/lib/api/tithes";
 import { endOfDay, subDays } from "date-fns";
 import { toast } from "sonner";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -67,6 +68,8 @@ export default function DashboardPage() {
     attendanceRate: 0,
     previousAttendanceRate: 0,
     monthlyGrowth: 0,
+    monthlyTithesChange: 0,
+    previousMonthlyTithes: 0,
     absenteesPercentage: 0,
     previousAbsenteesPercentage: 0
   });
@@ -230,11 +233,49 @@ export default function DashboardPage() {
         // Then fetch attendance data with the members count
         await fetchAttendanceData(membersCountResponse.count);
         
-        // Calculate percentage changes
+        // Percentage helper (used for members and tithes)
         const calculatePercentageChange = (current: number, previous: number): number => {
           if (previous === 0) return current > 0 ? 100 : 0;
           return Number((((current - previous) / previous) * 100).toFixed(1));
         };
+
+        // Fetch tithes for the current month and previous month, then compute totals and change
+        try {
+          const firstOfMonth = new Date();
+          firstOfMonth.setDate(1);
+          firstOfMonth.setHours(0, 0, 0, 0);
+
+          const prevMonthStart = new Date(firstOfMonth);
+          prevMonthStart.setMonth(prevMonthStart.getMonth() - 1);
+          prevMonthStart.setDate(1);
+          prevMonthStart.setHours(0, 0, 0, 0);
+
+          const prevMonthEnd = endOfDay(subDays(firstOfMonth, 1));
+
+          const [tithesThisMonth, tithesPreviousMonth] = await Promise.all([
+            tithesApi.getTithes({ startDate: firstOfMonth.toISOString(), endDate: endOfDay(new Date()).toISOString() }),
+            tithesApi.getTithes({ startDate: prevMonthStart.toISOString(), endDate: prevMonthEnd.toISOString() }),
+          ]);
+
+          const monthlyTithesAmount = Array.isArray(tithesThisMonth)
+            ? tithesThisMonth.reduce((sum, t) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0)
+            : 0;
+
+          const previousMonthlyTithesAmount = Array.isArray(tithesPreviousMonth)
+            ? tithesPreviousMonth.reduce((sum, t) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0)
+            : 0;
+
+          const tithesChangePercent = calculatePercentageChange(monthlyTithesAmount, previousMonthlyTithesAmount);
+
+          setStats(prev => ({
+            ...prev,
+            monthlyTithes: monthlyTithesAmount,
+            previousMonthlyTithes: previousMonthlyTithesAmount,
+            monthlyTithesChange: tithesChangePercent,
+          }));
+        } catch (err) {
+          console.error('Failed to load tithes:', err);
+        }
         
         const memberChangePercent = calculatePercentageChange(
           membersCountResponse.count,
@@ -331,9 +372,9 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/events/create"
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-black shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-4 w-4 text-black" />
               New Event
             </Link>
           </div>
@@ -351,7 +392,7 @@ export default function DashboardPage() {
           title="Total Members" 
           value={stats.totalMembers} 
           change={stats.memberChangePercent} 
-          icon={<Users className="h-5 w-5" />} 
+          icon={<Users className="h-5 text-amber-500 w-5" />} 
           color={circularColors[0]} 
         />
         <MetricCard 
@@ -360,21 +401,21 @@ export default function DashboardPage() {
           change={stats.previousWeekAttendance > 0 
             ? Math.round(((stats.weeklyAttendance - stats.previousWeekAttendance) / stats.previousWeekAttendance) * 100) 
             : stats.weeklyAttendance > 0 ? 100 : 0} 
-          icon={<CalendarCheck className="h-5 w-5" />} 
+          icon={<CalendarCheck className="h-5 text-amber-500 w-5" />} 
           color={circularColors[1]} 
         />
         <MetricCard 
           title="Monthly Tithes" 
           value={formatCurrency(stats.monthlyTithes)} 
-          change={15} 
-          icon={<DollarSign className="h-5 w-5" />} 
+          change={stats.monthlyTithesChange} 
+          icon={<DollarSign className="h-5 text-amber-500 w-5" />} 
           color={circularColors[2]} 
         />
         <MetricCard 
           title="Upcoming Events" 
           value={stats.upcomingEvents} 
           change={-5} 
-          icon={<Activity className="h-5 w-5" />} 
+          icon={<Activity className="h-5 text-amber-500 w-5" />} 
           color={circularColors[3]} 
         />
       </motion.div>
@@ -533,7 +574,7 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* Tithes & Offerings */}
+        {/* Tithes */}
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -543,7 +584,7 @@ export default function DashboardPage() {
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Tithes & Offerings</h2>
+                <h2 className="text-lg font-semibold text-foreground">Tithes</h2>
                 <p className="text-sm text-muted-foreground">Monthly breakdown</p>
               </div>
               <Link 
@@ -561,15 +602,15 @@ export default function DashboardPage() {
                 max={10000} 
                 color={circularColors[2]} 
                 prefix="₵" 
-                change={+15} 
+                change={stats.monthlyTithesChange} 
               />
               <AnimatedCircularMetric 
                 label="Growth" 
-                value={15} 
+                value={stats.monthlyTithesChange} 
                 max={100} 
                 suffix="%" 
-                color={circularColors[1]} 
-                change={+3} 
+                color={stats.monthlyTithesChange >= 0 ? circularColors[1] : circularColors[4]} 
+                change={stats.monthlyTithesChange} 
               />
             </div>
             
@@ -652,8 +693,8 @@ function AnimatedCircularMetric({
 
   const formatValue = (val: number) => {
     if (suffix === '%') return `${Math.round(val)}${suffix}`;
-    if (prefix === '$') return `${prefix}${val.toLocaleString()}`;
-    return `${prefix}${val}${suffix}`;
+    if (prefix) return `${prefix}${val.toLocaleString()}`;
+    return `${val}${suffix}`;
   };
 
   return (

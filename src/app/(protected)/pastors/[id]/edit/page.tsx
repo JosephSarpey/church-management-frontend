@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -12,11 +11,12 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PastorForm } from "@/components/forms/pastor-form";
 import Link from "next/link";
+import { pastorsApi } from "@/lib/api/pastors";
 
 type MockPastor = Omit<Pastor, 'id'> & { id: string | string[] };
 
 export default function EditPastorPage() {
-  const params = useParams();
+  const params = useParams<{ id: string | string[] }>();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [pastor, setPastor] = useState<MockPastor | null>(null);
@@ -33,27 +33,16 @@ export default function EditPastorPage() {
   useEffect(() => {
     const fetchPastor = async () => {
       try {
-        // TODO: Replace with actual API call
-        // const res = await fetch(`/api/pastors/${params.id}`);
-        // if (!res.ok) throw new Error("Failed to fetch pastor");
-        // const data = await res.json();
-        
-        // Mock data
-        const data: MockPastor = {
-  id: params.id as string, 
-  name: "John Doe",
-  dateAppointed: "2020-01-15",
-  currentStation: "Main Branch",
-  createdAt: "2020-01-15T00:00:00.000Z",
-  updatedAt: "2023-01-15T00:00:00.000Z",
-};
-        
-        setPastor(data);
-        form.reset({
-          name: data.name,
-          dateAppointed: data.dateAppointed,
-          currentStation: data.currentStation,
-        });
+        const id = Array.isArray(params.id) ? params.id[0] : params.id;
+        if (!id) return;
+
+        const data = await pastorsApi.getPastor(id);
+        const normalized: MockPastor = {
+          ...data,
+          dateAppointed: (data.dateAppointed || '').slice(0, 10),
+        } as MockPastor;
+
+        setPastor(normalized);
       } catch (error) {
         console.error("Error fetching pastor:", error);
         toast.error("Failed to load pastor data");
@@ -66,26 +55,22 @@ export default function EditPastorPage() {
   }, [params.id, form]);
 
   const onSubmit = async (formData: UpdatePastorDto) => {
-  try {
-    setLoading(true);
-    // TODO: Replace with actual API call
-    // const res = await fetch(`/api/pastors/${params.id}`, {
-    //   method: "PATCH",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(formData),
-    // });
-    // if (!res.ok) throw new Error("Failed to update pastor");
-    
-    toast.success("Pastor updated successfully");
-    router.push(`/pastors/${params.id}`);
-    router.refresh();
-  } catch (error) {
-    console.error("Error updating pastor:", error);
-    toast.error("Failed to update pastor");
-  } finally {
-    setLoading(false);
-  }
-};
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      await pastorsApi.updatePastor(id, formData);
+      toast.success("Pastor updated successfully");
+      router.push(`/pastors/${id}`);
+      router.refresh();
+    } catch (error) {
+      console.error("Error updating pastor:", error);
+      toast.error("Failed to update pastor");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading && !pastor) {
     return (
@@ -119,7 +104,11 @@ export default function EditPastorPage() {
 
       <div className="bg-card text-card-foreground rounded-lg border shadow-sm p-6">
         <PastorForm
-          initialData={pastor}
+          initialData={{
+            name: pastor.name,
+            dateAppointed: pastor.dateAppointed,
+            currentStation: pastor.currentStation,
+          }}
           isEdit
           onSubmit={onSubmit}
           loading={loading}
