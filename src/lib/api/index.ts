@@ -57,6 +57,9 @@ export { attendanceApi } from './attendance';
 export { pastorsApi } from './pastors';
 export { branchesApi } from './branches';
 export { tithesApi } from './tithes';
+export { eventsApi } from './events';
+export { notificationsApi } from './notifications';
+export { activityApi } from './activity';
 // export * from './events';
 
 

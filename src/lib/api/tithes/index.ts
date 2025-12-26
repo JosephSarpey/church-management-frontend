@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { api } from '..';
 import {
-  Tithe,
   TithesList,
   CreateTitheDto,
   UpdateTitheDto,

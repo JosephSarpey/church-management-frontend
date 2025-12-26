@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Bell, Check, Clock, AlertCircle } from 'lucide-react';
+import { Bell, Check, Clock, AlertCircle, Calendar, Info } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import {
   DropdownMenu,
@@ -11,75 +11,26 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Badge } from '@/components/ui/badge'; 
-
-type NotificationType = 'info' | 'warning' | 'success' | 'error';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  type: NotificationType;
-  read: boolean;
-}
+import { useNotifications, Notification } from '@/hooks/useNotifications';
+import { formatDistanceToNow } from 'date-fns';
 
 export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Mock notifications data
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'New Member Registered',
-      message: 'John Doe has registered as a new member.',
-      time: '10 minutes ago',
-      type: 'info',
-      read: false,
-    },
-    {
-      id: '2',
-      title: 'Upcoming Event',
-      message: 'Sunday service starts in 1 hour.',
-      time: '1 hour ago',
-      type: 'warning',
-      read: false,
-    },
-    {
-      id: '3',
-      title: 'Donation Received',
-      message: 'You have received a new donation of $100.',
-      time: '2 hours ago',
-      type: 'success',
-      read: true,
-    },
-  ]);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
-  const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    ));
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(notification => ({
-      ...notification,
-      read: true
-    })));
-  };
-
-  const getNotificationIcon = (type: NotificationType) => {
+  const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'warning':
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-      case 'success':
+      case 'BIRTHDAY':
+        return <Calendar className="h-4 w-4 text-purple-500" />;
+      case 'EVENT':
+        return <Clock className="h-4 w-4 text-blue-500" />;
+      case 'SUCCESS':
         return <Check className="h-4 w-4 text-green-500" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case 'WARNING':
+         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
       default:
-        return <Bell className="h-4 w-4 text-blue-500" />;
+        return <Bell className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -93,19 +44,19 @@ export function NotificationDropdown() {
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
               {unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-4 bg-muted/20">
           <h4 className="text-sm font-medium">Notifications</h4>
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-6 text-xs"
+            className="h-6 text-xs text-blue-500 hover:text-blue-600"
             onClick={(e) => {
               e.stopPropagation();
               markAllAsRead();
@@ -122,33 +73,34 @@ export function NotificationDropdown() {
             notifications.map((notification) => (
               <DropdownMenuItem 
                 key={notification.id} 
-                className={`flex gap-3 p-3 cursor-pointer ${!notification.read ? 'bg-muted/50' : ''}`}
+                className={`flex gap-3 p-3 cursor-pointer items-start ${!notification.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                 onClick={() => markAsRead(notification.id)}
               >
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 mt-1">
                   {getNotificationIcon(notification.type)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium truncate">{notification.title}</p>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-                      {notification.time}
+                    <p className={`text-sm truncate ${!notification.isRead ? 'font-semibold' : 'font-medium'}`}>{notification.title}</p>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">
+                       {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{notification.message}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{notification.message}</p>
                 </div>
               </DropdownMenuItem>
             ))
           ) : (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              No new notifications
+            <div className="p-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+              <Bell className="h-8 w-8 text-muted-foreground/30" />
+              <p>No new notifications</p>
             </div>
           )}
         </div>
         
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem className="justify-center text-sm font-medium text-primary cursor-pointer hover:bg-transparent">
+        <DropdownMenuItem className="justify-center text-xs text-muted-foreground py-3 cursor-pointer hover:bg-transparent">
           View all notifications
         </DropdownMenuItem>
       </DropdownMenuContent>

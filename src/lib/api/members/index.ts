@@ -4,6 +4,7 @@ import {
   CreateMemberDto,
   UpdateMemberDto,
   MemberCountResponse,
+  MemberStats,
   Member
 } from './types';
 
@@ -101,6 +102,14 @@ export const membersApi = {
    */
   async getTotalMembersCount(): Promise<MemberCountResponse> {
     const response = await api.get<MemberCountResponse>('/members/count');
+    return response.data;
+  },
+
+  /**
+   * Get detailed member statistics
+   */
+  async getMemberStats(): Promise<MemberStats> {
+    const response = await api.get<MemberStats>('/members/stats');
     return response.data;
   },
 };

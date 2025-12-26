@@ -5,6 +5,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/Button";
+import { useEffect, useState } from "react";
+import { pastorsApi } from "@/lib/api/pastors";
+import { Pastor } from "@/lib/api/pastors/types";
 
 import {
   Form,
@@ -16,13 +19,21 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Name must be at least 2 characters.",
   }),
   pastorId: z.string().min(1, {
-    message: "Pastor ID is required.",
+    message: "Please select a pastor.",
   }),
   memberCount: z.coerce.number().min(0, {
     message: "Number of members cannot be negative.",
@@ -56,21 +67,40 @@ interface BranchFormProps {
 }
 
 export function BranchForm({ onSubmit, loading, initialData }: BranchFormProps) {
+  const [pastors, setPastors] = useState<Pastor[]>([]);
+  const [loadingPastors, setLoadingPastors] = useState(false);
+
   const form = useForm<BranchFormValues>({
     resolver: zodResolver(formSchema as any),
     defaultValues: {
-      name: "",
-      pastorId: "",
-      memberCount: 0,
-      income: 0,
-      expenditure: 0,
-      events: "",
-      currentProject: "",
-      address: "",
-      description: "",
-      ...initialData,
+      name: initialData?.name || "",
+      pastorId: initialData?.pastorId || "",
+      memberCount: initialData?.memberCount || 0,
+      income: initialData?.income || 0,
+      expenditure: initialData?.expenditure || 0,
+      events: initialData?.events || "",
+      currentProject: initialData?.currentProject || "",
+      address: initialData?.address || "",
+      description: initialData?.description || "",
     },
   });
+
+  useEffect(() => {
+    const fetchPastors = async () => {
+      try {
+        setLoadingPastors(true);
+        const data = await pastorsApi.getPastors();
+        setPastors(data);
+      } catch (error) {
+        console.error("Error fetching pastors:", error);
+        toast.error("Failed to load pastors list");
+      } finally {
+        setLoadingPastors(false);
+      }
+    };
+
+    fetchPastors();
+  }, []);
 
   return (
     <Form {...form}>
@@ -94,10 +124,30 @@ export function BranchForm({ onSubmit, loading, initialData }: BranchFormProps) 
             name="pastorId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Branch Pastor ID</FormLabel>
-                <FormControl>
-                  <Input type="text" {...field} />
-                </FormControl>
+                <FormLabel>Branch Pastor</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value}
+                  value={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingPastors ? "Loading..." : "Select a pastor"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {pastors.map((pastor) => (
+                      <SelectItem key={pastor.id} value={pastor.id}>
+                        {pastor.name}
+                      </SelectItem>
+                    ))}
+                    {pastors.length === 0 && !loadingPastors && (
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        No pastors found
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

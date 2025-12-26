@@ -164,8 +164,8 @@ export default function BranchesPage() {
                                         <TableCell title={branch.id}>{formatId(branch.id)}</TableCell>
                                         <TableCell className="font-medium">{branch.name}</TableCell>
                                         <TableCell>{branch.memberCount}</TableCell>
-                                        <TableCell>${branch.income.toLocaleString()}</TableCell>
-                                        <TableCell>${branch.expenditure.toLocaleString()}</TableCell>
+                                        <TableCell>₵{branch.income.toLocaleString()}</TableCell>
+                                        <TableCell>₵{branch.expenditure.toLocaleString()}</TableCell>
                                         <TableCell>
                                             {(branch.events || '').split(/\r?\n/).filter(Boolean).length}
                                         </TableCell>

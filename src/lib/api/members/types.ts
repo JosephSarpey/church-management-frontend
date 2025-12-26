@@ -12,6 +12,21 @@ export interface MemberCountResponse {
   previousCount: number;
 }
 
+export interface MemberStats {
+  totalMembers: number;
+  activeMembers: number;
+  baptizedMembers: number;
+  genderDistribution: {
+    male: number;
+    female: number;
+  };
+  ageDistribution: {
+    youth: number;
+    adults: number;
+  };
+  growthRate: number;
+}
+
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
 export const GenderOptions = {
   MALE: 'Male',

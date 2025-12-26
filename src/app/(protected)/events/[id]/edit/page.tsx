@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Clock, MapPin, X } from 'lucide-react';
-import { format, addHours } from 'date-fns';
+import { Calendar as CalendarIcon, MapPin, X, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -17,33 +17,94 @@ import {
 } from '@/components/ui/popover';
 import Image from 'next/image';
 import { eventsApi } from '@/lib/api/events';
-import { CreateEventDto, ServiceType } from '@/lib/api/events/types';
 import { toast } from 'sonner';
 
-export default function CreateEventPage() {
+type EventType = 'SUNDAY_SERVICE' | 'BIBLE_STUDY' | 'PRAYER_MEETING' | 'YOUTH_SERVICE' | 'SPECIAL_EVENT' | 'OTHER';
+type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED';
+
+interface FormData {
+  title: string;
+  description: string;
+  startTime: Date;
+  endTime: Date;
+  location: string;
+  type: EventType;
+  isRecurring: boolean;
+  attendees: number;
+  maxAttendees: number;
+  registrationRequired: boolean;
+  status: EventStatus;
+  image: File | null;
+  imageUrl: string;
+}
+
+export default function EditEventPage() {
   const router = useRouter();
-  const [formData, setFormData] = useState({
+  const { id } = useParams();
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     startTime: new Date(),
-    endTime: addHours(new Date(), 1), // Default to 1 hour duration
+    endTime: new Date(new Date().setHours(new Date().getHours() + 1)),
     location: '',
-    type: 'SUNDAY_SERVICE' as ServiceType,
-    isRecurring: false,
+    type: 'SUNDAY_SERVICE',
     attendees: 0,
+    isRecurring: false,
     maxAttendees: 100,
     registrationRequired: false,
-    image: null as File | null,
+    status: 'PUBLISHED',
+    image: null,
     imageUrl: '',
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const event = await eventsApi.getEvent(id as string);
+        setFormData({
+          title: event.title,
+          description: event.description || '',
+          startTime: new Date(event.startTime),
+          endTime: new Date(event.endTime),
+          location: event.location || '',
+          type: event.type as EventType,
+          attendees: event.attendees || 0,
+          isRecurring: event.isRecurring || false,
+          maxAttendees: event.maxAttendees || 100,
+          registrationRequired: event.registrationRequired || false,
+          status: event.status as EventStatus,
+          image: null,
+          imageUrl: event.imageUrl || '',
+        });
+        if (event.imageUrl) {
+          setPreviewImage(event.imageUrl);
+        }
+      } catch (error) {
+        console.error('Error fetching event:', error);
+        toast.error('Failed to load event');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchEvent();
+    }
+  }, [id]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'number' 
+        ? parseInt(value, 10) 
+        : type === 'checkbox' 
+          ? (e.target as HTMLInputElement).checked
+          : value
     }));
   };
 
@@ -71,52 +132,47 @@ export default function CreateEventPage() {
     setIsSubmitting(true);
     
     try {
+      const formDataToSend = new FormData();
       const { image, ...eventData } = formData;
       
-      // Create the event data object matching CreateEventDto
-      const eventDto: CreateEventDto = {
-        ...eventData,
-        startTime: formData.startTime.toISOString(),
-        endTime: formData.endTime.toISOString(),
-        status: 'PUBLISHED',
-        attendees: formData.attendees || 0,
-        maxAttendees: formData.maxAttendees || 100,
-        imageUrl: formData.imageUrl || '',
-      };
-      
-      // Convert the event data to FormData for file upload
-      const formDataToSend = new FormData();
-      
-      // Add all fields to form data
-      Object.entries(eventDto).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
+      Object.entries(eventData).forEach(([key, value]) => {
+        if (value instanceof Date) {
+          formDataToSend.append(key, value.toISOString());
+        } else if (value !== null && value !== undefined) {
           formDataToSend.append(key, value.toString());
         }
       });
       
-      // Add image if it exists
-      if (image) {
-        formDataToSend.append('files', image);
+      if (formData.image) {
+        formDataToSend.append('files', formData.image);
       }
       
-      await eventsApi.createEvent(eventDto, image ? [image] : undefined);
+      await eventsApi.updateEvent(id as string, formDataToSend);
       
-      toast.success('Event created successfully!');
-      router.push('/events');
-      router.refresh(); // Refresh the events list
+      toast.success('Event updated successfully!');
+      router.push(`/events/${id}`);
+      router.refresh();
     } catch (error) {
-      console.error('Error creating event:', error);
-      toast.error('Failed to create event. Please try again.');
+      console.error('Error updating event:', error);
+      toast.error('Failed to update event. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create New Event</h1>
-        <p className="text-gray-600 dark:text-gray-300 mt-2">Fill in the details below to create a new church event</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Edit Event</h1>
+        <p className="text-gray-600 dark:text-gray-300 mt-2">Update the event details below</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -124,41 +180,34 @@ export default function CreateEventPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Event Title <span className="text-red-500">*</span>
                 </label>
                 <Input
-                  id="title"
                   name="title"
-                  type="text"
-                  required
                   value={formData.title}
                   onChange={handleChange}
-                  placeholder="E.g., Sunday Service"
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  placeholder="Enter event title"
+                  required
                 />
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Description
                 </label>
                 <Textarea
-                  id="description"
                   name="description"
-                  rows={4}
                   value={formData.description}
                   onChange={handleChange}
-                  placeholder="Provide details about the event..."
-                  className="min-h-[120px] dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  rows={4}
+                  placeholder="Enter event description"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Start Time <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-1">Start Time</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -169,7 +218,7 @@ export default function CreateEventPage() {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(formData.startTime, 'MMM d, yyyy h:mm a')}
+                        {formData.startTime ? format(formData.startTime, 'MMM d, yyyy h:mm a') : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -183,7 +232,7 @@ export default function CreateEventPage() {
                             setFormData(prev => ({
                               ...prev,
                               startTime: newStartTime,
-                              endTime: new Date(newStartTime.getTime() + (formData.endTime.getTime() - formData.startTime.getTime()))
+                              endTime: new Date(newStartTime.getTime() + 3600000) // Add 1 hour
                             }));
                           }
                         }}
@@ -200,7 +249,7 @@ export default function CreateEventPage() {
                             setFormData(prev => ({
                               ...prev,
                               startTime: newStartTime,
-                              endTime: new Date(newStartTime.getTime() + (formData.endTime.getTime() - formData.startTime.getTime()))
+                              endTime: new Date(newStartTime.getTime() + 3600000) // Add 1 hour
                             }));
                           }}
                           className="w-full"
@@ -211,9 +260,7 @@ export default function CreateEventPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    End Time <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium mb-1">End Time</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -224,7 +271,7 @@ export default function CreateEventPage() {
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(formData.endTime, 'MMM d, yyyy h:mm a')}
+                        {formData.endTime ? format(formData.endTime, 'MMM d, yyyy h:mm a') : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
@@ -264,111 +311,105 @@ export default function CreateEventPage() {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Location <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-4 w-4 text-gray-400" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Location</label>
+                  <div className="relative">
+                    <Input
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      placeholder="Enter event location"
+                      className="pl-10"
+                    />
+                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   </div>
-                  <Input
-                    id="location"
-                    name="location"
-                    type="text"
-                    required
-                    value={formData.location}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Event Type</label>
+                  <select
+                    name="type"
+                    value={formData.type}
                     onChange={handleChange}
-                    placeholder="E.g., Main Sanctuary"
-                    className="pl-10 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  />
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="SUNDAY_SERVICE">Sunday Service</option>
+                    <option value="BIBLE_STUDY">Bible Study</option>
+                    <option value="PRAYER_MEETING">Prayer Meeting</option>
+                    <option value="YOUTH_SERVICE">Youth Service</option>
+                    <option value="SPECIAL_EVENT">Special Event</option>
+                    <option value="OTHER">Other</option>
+                  </select>
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Event Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="type"
-                  name="type"
-                  value={formData.type}
-                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as ServiceType }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="SUNDAY_SERVICE">Sunday Service</option>
-                  <option value="BIBLE_STUDY">Bible Study</option>
-                  <option value="PRAYER_MEETING">Prayer Meeting</option>
-                  <option value="YOUTH_SERVICE">Youth Service</option>
-                  <option value="SPECIAL_EVENT">Special Event</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="attendees" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Current Attendees
                     </label>
                     <Input
-                      id="attendees"
-                      name="attendees"
                       type="number"
-                      min="0"
                       value={formData.attendees}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
                         attendees: parseInt(e.target.value) || 0
                       }))}
-                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      min="0"
+                      placeholder="Number of attendees"
                     />
                   </div>
-                  <div>
-                    <label htmlFor="maxAttendees" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Max Attendees
                     </label>
                     <Input
-                      id="maxAttendees"
-                      name="maxAttendees"
                       type="number"
-                      min="1"
                       value={formData.maxAttendees}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
                         maxAttendees: parseInt(e.target.value) || 0
                       }))}
-                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      min="1"
+                      placeholder="Maximum attendees"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <input
-                    id="registrationRequired"
-                    name="registrationRequired"
-                    type="checkbox"
-                    checked={formData.registrationRequired}
-                    onChange={(e) => setFormData(prev => ({ ...prev, registrationRequired: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <label htmlFor="registrationRequired" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Require registration
-                  </label>
-                </div>
+                <div className="flex items-end space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="isRecurring"
+                      checked={formData.isRecurring}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        isRecurring: e.target.checked
+                      }))}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="isRecurring" className="text-sm font-medium">
+                      Recurring Event
+                    </label>
+                  </div>
 
-                <div className="flex items-center space-x-2">
-                  <input
-                    id="isRecurring"
-                    name="isRecurring"
-                    type="checkbox"
-                    checked={formData.isRecurring}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Recurring event
-                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="registrationRequired"
+                      checked={formData.registrationRequired}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        registrationRequired: e.target.checked
+                      }))}
+                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <label htmlFor="registrationRequired" className="text-sm font-medium">
+                      Registration Required
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -424,22 +465,27 @@ export default function CreateEventPage() {
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 mt-8">
+        <div className="flex justify-end space-x-4 pt-4">
           <Button
             type="button"
             variant="outline"
+            className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 dark:border-yellow-600 dark:text-yellow-400 dark:hover:bg-yellow-900/20"
             onClick={() => router.back()}
             disabled={isSubmitting}
-            className="dark:border-gray-600 dark:text-white dark:hover:bg-gray-700"
           >
             Cancel
           </Button>
           <Button 
             type="submit" 
-            className="w-full md:w-auto bg-yellow-500 hover:bg-yellow-600 text-white"
             disabled={isSubmitting}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white"
           >
-            {isSubmitting ? 'Creating...' : 'Create Event'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Updating...
+              </>
+            ) : 'Update Event'}
           </Button>
         </div>
       </form>

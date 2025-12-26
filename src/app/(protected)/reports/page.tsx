@@ -1,8 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { Download, Filter, Users, DollarSign, Calendar, UserCheck, Gift } from 'lucide-react';
+import { Users, DollarSign, Calendar, UserCheck, Gift, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import AttendanceReport from '@/components/reports/AttendanceReport';
+import DonationsReport from '@/components/reports/DonationsReport';
+import EventsReport from '@/components/reports/EventsReport';
+import MembershipReport from '@/components/reports/MembershipReport';
+
+type ReportType = 'attendance' | 'donations' | 'events' | 'membership' | 'contributions' | null;
 
 type ReportCardProps = {
   title: string;
@@ -20,87 +26,88 @@ const ReportCard: React.FC<ReportCardProps> = ({ title, description, icon, onGen
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
     </div>
     <p className="text-gray-600 dark:text-gray-300 flex-grow mb-4">{description}</p>
-    <button
+    <Button
       onClick={onGenerate}
-      className="mt-auto w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 dark:bg-yellow-600 dark:hover:bg-yellow-700 transition-colors duration-200"
+      className="mt-auto w-full bg-yellow-500 hover:bg-yellow-600 text-white"
     >
-      <Download className="mr-2 h-4 w-4" /> Generate Report
-    </button>
+      View Report
+    </Button>
   </div>
 );
 
 export default function ReportsPage() {
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setDate(1)), // First day of current month
-    endDate: new Date(), // Today
-  });
-
-  const handleGenerateReport = (reportType: string) => {
-    console.log(`Generating ${reportType} report for`, dateRange);
-    // TODO: Implement report generation logic
-    // This could open a modal, navigate to a detailed report page, or trigger a download
-  };
+  const [activeReport, setActiveReport] = useState<ReportType>(null);
 
   const reportTypes = [
     {
       id: 'attendance',
       title: 'Attendance Report',
-      description: 'View and analyze attendance patterns and statistics.',
+      description: 'View and analyze attendance patterns, service statistics, and visitor tracking.',
       icon: <Users className="h-5 w-5" />,
     },
     {
       id: 'donations',
       title: 'Donations Report',
-      description: 'Track and analyze financial contributions and giving patterns.',
+      description: 'Track financial contributions, tithes, and analyze giving trends over time.',
       icon: <DollarSign className="h-5 w-5" />,
     },
     {
       id: 'events',
       title: 'Events Report',
-      description: 'View event participation and engagement metrics.',
+      description: 'Overview of upcoming and past events, participation, and scheduling.',
       icon: <Calendar className="h-5 w-5" />,
     },
     {
       id: 'membership',
       title: 'Membership Report',
-      description: 'Analyze membership growth and demographics.',
+      description: 'Analyze membership growth, demographics, and member status distribution.',
       icon: <UserCheck className="h-5 w-5" />,
     },
-    {
-      id: 'contributions',
-      title: 'Contributions Report',
-      description: 'Detailed breakdown of all contributions and offerings.',
-      icon: <Gift className="h-5 w-5" />,
-    },
+    // Contributions is similar to donations, can be merged or separate. Keeping separate placeholder if needed or merging.
+    // For now, I'll map 'contributions' to Donations report as well or keep it disabled/different if requirements differ.
+    // Let's remove it to avoid confusion if it's redundant, or map it to DonationsReport.
   ];
+
+  const renderActiveReport = () => {
+    switch (activeReport) {
+      case 'attendance':
+        return <AttendanceReport />;
+      case 'donations':
+        return <DonationsReport />;
+      case 'events':
+        return <EventsReport />;
+      case 'membership':
+        return <MembershipReport />;
+      default:
+        return null;
+    }
+  };
+
+  if (activeReport) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveReport(null)}
+            className="flex items-center text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white p-0 hover:bg-transparent"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Reports
+          </Button>
+        </div>
+        
+        {renderActiveReport()}
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reports</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Generate and analyze church reports</p>
-        </div>
-        <div className="mt-4 md:mt-0">
-          <DateRangePicker
-            onUpdate={({ range }) => setDateRange({
-              startDate: range.from || new Date(),
-              endDate: range.to || new Date(),
-            })}
-            initialDateFrom={dateRange.startDate}
-            initialDateTo={dateRange.endDate}
-            align="end"
-            showCompare={false}
-          />
-        </div>
-      </div>
-
-      <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-100 dark:border-yellow-800/50">
-        <div className="flex items-center">
-          <Filter className="text-yellow-600 dark:text-yellow-400 mr-2 h-4 w-4" />
-          <span className="text-sm text-yellow-800 dark:text-yellow-200">
-            Showing reports from {dateRange.startDate.toLocaleDateString()} to {dateRange.endDate.toLocaleDateString()}
-          </span>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Reports Central</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Generate and analyze detailed church reports</p>
         </div>
       </div>
 
@@ -111,7 +118,7 @@ export default function ReportsPage() {
             title={report.title}
             description={report.description}
             icon={report.icon}
-            onGenerate={() => handleGenerateReport(report.id)}
+            onGenerate={() => setActiveReport(report.id as ReportType)}
           />
         ))}
       </div>
