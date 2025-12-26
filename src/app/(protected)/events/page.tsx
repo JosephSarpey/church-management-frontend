@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { format, parseISO } from 'date-fns';
 import { eventsApi } from '@/lib/api/events';
-import type { Event, EventsList } from '@/lib/api/events/types';
+import type { Event } from '@/lib/api/events/types';
 import { toast } from 'sonner';
 
 export default function EventsPage() {
@@ -25,7 +25,6 @@ export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -35,11 +34,9 @@ export default function EventsPage() {
         const response = await eventsApi.getEvents({ status: 'PUBLISHED' });
         // Handle paginated response structure
         setEvents(response?.data || []);
-        setError(null);
       } catch (error) {
         console.error('Error fetching events:', error);
         setEvents([]);
-        setError('Failed to load events. Please try again later.');
         toast.error('Failed to load events. Please try again later.');
       } finally {
         setIsLoading(false);

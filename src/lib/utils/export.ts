@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 /**
  * Export data to CSV file
  */
-export const exportToCSV = (data: any[], filename: string) => {
+export const exportToCSV = (data: Record<string, unknown>[], filename: string) => {
   if (!data || data.length === 0) {
     console.warn('No data to export');
     return;

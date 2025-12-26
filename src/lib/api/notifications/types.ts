@@ -6,7 +6,7 @@ export interface Notification {
   type: string;
   isRead: boolean;
   link?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   readAt?: string;
 }

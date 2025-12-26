@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import tithesApi from '@/lib/api/tithes';
-import { TitheResponse, Tithe } from '@/lib/api/tithes/types';
-import { Loader2, DollarSign, TrendingUp, CreditCard, Calendar, Download } from 'lucide-react';
+import { TitheResponse } from '@/lib/api/tithes/types';
+import { Loader2, DollarSign, TrendingUp, CreditCard, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/Button';
 import {
@@ -24,17 +24,23 @@ import {
 } from '@/components/ui/table';
 import { exportToCSV, exportToPDF, getDateRangeFilename } from '@/lib/utils/export';
 
-// Helper to format currency
+interface TitheWithMember extends TitheResponse {
+  member?: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'GHS', // Assuming USD for now, could be dynamic
+    currency: 'GHS', 
   }).format(amount);
 };
 
 export default function DonationsReport() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(new Date().setDate(1)), // First day of current month
+    from: new Date(new Date().setDate(1)), 
     to: new Date(),
   });
   const [data, setData] = useState<TitheResponse[]>([]);
@@ -43,7 +49,7 @@ export default function DonationsReport() {
 
   useEffect(() => {
     fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  
   }, [dateRange]);
 
   const fetchData = async () => {
@@ -58,7 +64,7 @@ export default function DonationsReport() {
       });
       
       // Handle response being array or object with data property based on actual return from client
-      const records = Array.isArray(response) ? response : (response as any).data || [];
+      const records = Array.isArray(response) ? response : (response as { data?: TitheResponse[] }).data || [];
       setData(records as TitheResponse[]);
     } catch (err) {
       console.error('Failed to fetch tithes:', err);
@@ -74,12 +80,15 @@ export default function DonationsReport() {
   const uniqueDonors = new Set(data.map(item => item.memberId).filter(Boolean)).size;
 
   const handleDownloadCSV = () => {
-    const csvData = data.map(record => ({
+    const csvData = data.map(record => {
+      const titheRecord = record as TitheWithMember;
+      return {
       'Date': new Date(record.paymentDate).toLocaleDateString(),
-      'Member': (record as any).member ? `${(record as any).member.firstName} ${(record as any).member.lastName}` : (record.memberName || 'Anonymous'),
+      'Member': titheRecord.member ? `${titheRecord.member.firstName} ${titheRecord.member.lastName}` : (record.memberName || 'Anonymous'),
       'Type': record.paymentType,
       'Amount': Number(record.amount),
-    }));
+    };
+    });
 
     const dateStr = getDateRangeFilename(dateRange?.from, dateRange?.to);
     exportToCSV(csvData, `donations_report_${dateStr}`);
@@ -198,13 +207,15 @@ export default function DonationsReport() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.slice(0, 10).map((record) => (
+                {data.slice(0, 10).map((record) => {
+                  const titheRecord = record as TitheWithMember;
+                  return (
                   <TableRow key={record.id}>
                     <TableCell>
                       {new Date(record.paymentDate).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {(record as any).member ? `${(record as any).member.firstName} ${(record as any).member.lastName}` : (record.memberName || 'Anonymous')}
+                      {titheRecord.member ? `${titheRecord.member.firstName} ${titheRecord.member.lastName}` : (record.memberName || 'Anonymous')}
                     </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
@@ -215,7 +226,8 @@ export default function DonationsReport() {
                       {formatCurrency(Number(record.amount))}
                     </TableCell>
                   </TableRow>
-                ))}
+                );
+                })}
                 {data.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-4 text-gray-500">

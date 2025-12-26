@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Users, DollarSign, Calendar, UserCheck, Gift, ArrowLeft } from 'lucide-react';
+import { Users, DollarSign, Calendar, UserCheck, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import AttendanceReport from '@/components/reports/AttendanceReport';
 import DonationsReport from '@/components/reports/DonationsReport';
