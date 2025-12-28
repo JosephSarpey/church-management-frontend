@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { tithesApi } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -42,7 +42,7 @@ export default function TithesPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const fetchTithes = async () => {
+  const fetchTithes = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await tithesApi.getTithes({
@@ -99,11 +99,11 @@ export default function TithesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, filter, debouncedSearch]);
 
   useEffect(() => {
     fetchTithes();
-  }, [pagination.page, pagination.limit, filter, debouncedSearch]);
+  }, [fetchTithes]);
 
   const handleView = (tithe: TableTithe) => {
     router.push(`/tithes/${tithe.id}`);

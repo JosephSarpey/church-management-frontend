@@ -37,7 +37,6 @@ const NotificationBell = () => {
             notifications={notifications} 
             onMarkRead={markAsRead} 
             onMarkAllRead={markAllAsRead}
-            onClose={() => setIsOpen(false)}
           />
         </div>
       )}

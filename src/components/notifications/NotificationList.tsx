@@ -1,13 +1,12 @@
 import React from 'react';
 import { Notification } from '@/hooks/useNotifications';
-import { Check, Clock, Calendar, Info, X } from 'lucide-react';
+import { Check, Clock, Calendar, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface NotificationListProps {
   notifications: Notification[];
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
-  onClose: () => void;
 }
 
 const getIcon = (type: string) => {
@@ -19,7 +18,7 @@ const getIcon = (type: string) => {
   }
 };
 
-const NotificationList: React.FC<NotificationListProps> = ({ notifications, onMarkRead, onMarkAllRead, onClose }) => {
+const NotificationList: React.FC<NotificationListProps> = ({ notifications, onMarkRead, onMarkAllRead }) => {
   return (
     <div className="flex flex-col max-h-[80vh]">
       <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">

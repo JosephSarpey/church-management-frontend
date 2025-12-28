@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import tithesApi from '@/lib/api/tithes';
@@ -47,12 +47,7 @@ export default function DonationsReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  
-  }, [dateRange]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
 
     try {
@@ -72,7 +67,12 @@ export default function DonationsReport() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
+
+  useEffect(() => {
+    fetchData();
+  
+  }, [fetchData]);
 
   // Calculate stats
   const totalAmount = data.reduce((sum, item) => sum + Number(item.amount), 0);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button'; 
 import { Input } from '@/components/ui/Input';
@@ -34,7 +34,7 @@ export default function MembersPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       setIsLoading(true);
       const skip = (currentPage - 1) * pageSize;
@@ -78,11 +78,11 @@ export default function MembersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentPage, debouncedSearch]);
 
   useEffect(() => {
     fetchMembers();
-  }, [currentPage, debouncedSearch]);
+  }, [fetchMembers]);
 
   const noMembersFound = !isLoading && members.length === 0;
 

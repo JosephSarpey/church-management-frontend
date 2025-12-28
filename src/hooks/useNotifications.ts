@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@clerk/nextjs';
 import { notificationsApi } from '@/lib/api';
@@ -9,13 +9,13 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 export type { Notification };
 
 export const useNotifications = () => {
-  const { userId, getToken } = useAuth();
+  const { userId } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const socketRef = useRef<Socket | null>(null);
 
   // Fetch initial notifications
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!userId) return;
     try {
       const data = await notificationsApi.getAll(userId);
@@ -24,7 +24,7 @@ export const useNotifications = () => {
     } catch (err) {
       console.error('Failed to fetch notifications', err);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -48,7 +48,7 @@ export const useNotifications = () => {
     return () => {
       socketRef.current?.disconnect();
     };
-  }, [userId]);
+  }, [userId, fetchNotifications]);
 
   const markAsRead = async (id: string) => {
     // Optimistic update

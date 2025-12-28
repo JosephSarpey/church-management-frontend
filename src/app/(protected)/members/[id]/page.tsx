@@ -142,24 +142,24 @@ export default function MemberProfilePage() {
       try {
         setLoadingFinancials(true);
         const response = await tithesApi.getTithes({ memberId: params.id });
-        const tithesData = (response as any).data || [];
+        const tithesData = (response as { data: Tithe[] }).data || [];
 
         const totalTithes = tithesData
-          .filter((t: any) => t.paymentType === 'TITHE')
-          .reduce((s: number, t: any) => s + (t.amount || 0), 0);
+          .filter((t: Tithe) => t.paymentType === 'TITHE')
+          .reduce((s: number, t: Tithe) => s + (t.amount || 0), 0);
 
-        const titheCount = tithesData.filter((t: any) => t.paymentType === 'TITHE').length;
+        const titheCount = tithesData.filter((t: Tithe) => t.paymentType === 'TITHE').length;
 
         const totalOfferings = tithesData
-          .filter((t: any) => t.paymentType === 'OFFERING')
-          .reduce((s: number, t: any) => s + (t.amount || 0), 0);
+          .filter((t: Tithe) => t.paymentType === 'OFFERING')
+          .reduce((s: number, t: Tithe) => s + (t.amount || 0), 0);
 
-        const offeringCount = tithesData.filter((t: any) => t.paymentType === 'OFFERING').length;
+        const offeringCount = tithesData.filter((t: Tithe) => t.paymentType === 'OFFERING').length;
 
         setFinancialStats({ totalTithes, titheCount, totalOfferings, offeringCount });
         const recent = tithesData
           .slice()
-          .sort((a: any, b: any) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+          .sort((a: Tithe, b: Tithe) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
           .slice(0, 5);
         setRecentFinances(recent);
       } catch (err) {

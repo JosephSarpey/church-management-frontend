@@ -15,6 +15,7 @@ import {
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { tithesApi } from "@/lib/api/tithes";
+import { Tithe } from "@/lib/api/tithes/types";
 
 const COLORS = [
   "#3B82F6", // blue-500
@@ -67,7 +68,7 @@ export function TithesChart() {
         const sums: Record<string, number> = {};
         monthKeys.forEach((k) => (sums[k] = 0));
 
-        const tithesData = Array.isArray(tithes) ? tithes : (tithes as any).data || [];
+        const tithesData = ('data' in tithes ? tithes.data : tithes) as Tithe[];
 
         for (const t of tithesData) {
           if (t.paymentType !== 'TITHE') continue;

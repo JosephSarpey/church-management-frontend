@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { membersApi } from "@/lib/api/members";
 import { attendanceApi } from "@/lib/api/attendance";
 import { tithesApi } from "@/lib/api/tithes";
+import { Tithe } from "@/lib/api/tithes/types";
 import { eventsApi } from "@/lib/api/events";
 import type { Event } from "@/lib/api/events/types";
 import { endOfDay, subDays } from "date-fns";
 import { toast } from "sonner";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ServiceType } from "@/lib/api/attendance/types";
-import { formatDate } from "@/lib/utils";
 
 import { DashboardHeader } from "@/components/dashboard/sections/DashboardHeader";
 import { StatsGrid } from "@/components/dashboard/sections/StatsGrid";
@@ -281,11 +281,11 @@ export default function DashboardPage() {
             tithesApi.getTithes({ startDate: prevMonthStart.toISOString(), endDate: prevMonthEnd.toISOString() }),
           ]);
 
-          const tithesThisMonthData = Array.isArray(tithesThisMonth) ? tithesThisMonth : (tithesThisMonth as any).data || [];
-          const tithesPreviousMonthData = Array.isArray(tithesPreviousMonth) ? tithesPreviousMonth : (tithesPreviousMonth as any).data || [];
+          const tithesThisMonthData = 'data' in tithesThisMonth ? tithesThisMonth.data : (tithesThisMonth as unknown as Tithe[]);
+          const tithesPreviousMonthData = 'data' in tithesPreviousMonth ? tithesPreviousMonth.data : (tithesPreviousMonth as unknown as Tithe[]);
 
-          const monthlyTithesAmount = tithesThisMonthData.reduce((sum: number, t: any) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0);
-          const previousMonthlyTithesAmount = tithesPreviousMonthData.reduce((sum: number, t: any) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0);
+          const monthlyTithesAmount = tithesThisMonthData.reduce((sum: number, t: Tithe) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0);
+          const previousMonthlyTithesAmount = tithesPreviousMonthData.reduce((sum: number, t: Tithe) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0);
 
           const tithesChangePercent = calculatePercentageChange(monthlyTithesAmount, previousMonthlyTithesAmount);
 

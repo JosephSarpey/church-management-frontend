@@ -10,11 +10,13 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  GaugeCircle,
   CalendarDays,
   Settings,
   HousePlusIcon,
   User,
+  ChartNoAxesCombined,
+  Church,
+  UserStar,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -42,14 +44,14 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const navItems = [
-    { href: "/", icon: <GaugeCircle size={20} />, label: "Dashboard" },
+    { href: "/", icon: <ChartNoAxesCombined size={20} />, label: "Dashboard" },
     { href: "/members", icon: <Users size={20} />, label: "Members" },
     { href: "/attendance", icon: <CalendarCheck size={20} />, label: "Attendance" },
     { href: "/tithes", icon: <Wallet size={20} />, label: "Tithes & Offering" },
     { href: "/events", icon: <CalendarDays size={20} />, label: "Events" },
     { href: "/reports", icon: <FileText size={20} />, label: "Reports" },
-    { href: "/branches", icon: <HousePlusIcon size={20} />, label: "Branches" },
-    { href: "/pastors", icon: <User size={20} />, label: "Pastors" },
+    { href: "/branches", icon: <Church size={20} />, label: "Branches" },
+    { href: "/pastors", icon: <UserStar size={20} />, label: "Pastors" },
   ];
 
   const bottomNavItems = [

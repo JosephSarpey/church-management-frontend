@@ -134,7 +134,7 @@ const TitheDetailPage: React.FC = () => {
       <div className="container mx-auto py-12 px-4 text-center">
         <div className="max-w-md mx-auto">
           <h2 className="text-2xl font-bold mb-4">Record Not Found</h2>
-          <p className="text-muted-foreground mb-6">The tithe or offering record you're looking for doesn't exist or you don't have access to it.</p>
+          <p className="text-muted-foreground mb-6">The tithe or offering record you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
           <Button onClick={() => router.push('/tithes')}>Back to Tithes</Button>
         </div>
       </div>
@@ -238,11 +238,11 @@ const TitheDetailPage: React.FC = () => {
               </div>
               <h3 className="text-2xl font-bold">Thank You!</h3>
               <p className="text-white/80 dark:text-amber-100/70 text-sm leading-relaxed">
-                Giving is an act of worship and a way to support the work of God's house. Your contribution helps us reach more people and change lives.
+                Giving is an act of worship and a way to support the work of God&apos;s house. Your contribution helps us reach more people and change lives.
               </p>
               <div className="pt-4 border-t border-white/10 dark:border-amber-500/10">
                 <blockquote className="italic text-xs opacity-70">
-                  "Give, and it will be given to you. A good measure, pressed down, shaken together and running over..."
+                  &quot;Give, and it will be given to you. A good measure, pressed down, shaken together and running over...&quot;
                   <footer className="mt-1 font-bold not-italic font-sans">— Luke 6:38</footer>
                 </blockquote>
               </div>

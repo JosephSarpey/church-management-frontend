@@ -87,7 +87,7 @@ export const exportToPDF = async (
               htmlEl.style.color = htmlEl.style.color || '';
               htmlEl.style.backgroundColor = htmlEl.style.backgroundColor || '';
               htmlEl.style.borderColor = htmlEl.style.borderColor || '';
-            } catch (err) {
+            } catch {
               // Silently ignore style errors
             }
           });
