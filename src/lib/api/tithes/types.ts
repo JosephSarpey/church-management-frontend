@@ -49,4 +49,14 @@ export type UpdateTitheDto = Partial<CreateTitheDto>;
 
 export type TitheResponse = Tithe;
 
-export type TithesList = Tithe[];
+export interface PaginatedTitheResponse {
+  data: Tithe[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export type TithesList = PaginatedTitheResponse;

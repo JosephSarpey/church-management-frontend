@@ -139,6 +139,12 @@ export default function EventDetailsPage() {
                     )}
                   </div>
                 </div>
+                {event.isRecurring && event.recurringPattern && (
+                  <div className="flex items-center text-gray-700 dark:text-gray-300">
+                    <Clock className="h-5 w-5 mr-2 text-primary" />
+                    <span>Repeats {event.recurringPattern.toLowerCase()}</span>
+                  </div>
+                )}
                 {event.location && (
                   <div className="flex items-center text-gray-700 dark:text-gray-300">
                     <MapPin className="h-5 w-5 mr-2 text-primary" />

@@ -75,16 +75,16 @@ export default function DashboardPage() {
       ]);
 
       // Process current month data
-      const currentMonthRecords = Array.isArray(currentMonthResponse)
-        ? currentMonthResponse.map(record => ({
+      const currentMonthRecords = Array.isArray(currentMonthResponse.data)
+        ? currentMonthResponse.data.map(record => ({
             ...record,
             date: new Date(record.date)
           }))
         : [];
 
       // Process previous month data
-      const previousMonthRecords = Array.isArray(previousMonthResponse)
-        ? previousMonthResponse.map(record => ({
+      const previousMonthRecords = Array.isArray(previousMonthResponse.data)
+        ? previousMonthResponse.data.map(record => ({
             ...record,
             date: new Date(record.date)
           }))
@@ -129,7 +129,9 @@ export default function DashboardPage() {
       
       // Group attendance by service type and date to count absentees
       const serviceAttendance = currentMonthRecords.reduce((acc, record) => {
-        const date = record.date instanceof Date ? record.date.toISOString().split('T')[0] : record.date.split('T')[0];
+        const date = record.date instanceof Date 
+          ? record.date.toISOString().split('T')[0] 
+          : (record.date as unknown as string).split('T')[0];
         const serviceKey = `${date}_${record.serviceType}`;
         if (!acc[serviceKey]) {
           acc[serviceKey] = new Set<string>();
@@ -156,7 +158,9 @@ export default function DashboardPage() {
       
       // Calculate previous period absentees
       const prevServiceAttendance = previousMonthRecords.reduce((acc, record) => {
-        const date = record.date instanceof Date ? formatDate(record.date) : record.date.split('T')[0];
+        const date = record.date instanceof Date 
+          ? record.date.toISOString().split('T')[0] 
+          : (record.date as unknown as string).split('T')[0];
         const serviceKey = `${date}_${record.serviceType}`;
         if (!acc[serviceKey]) {
           acc[serviceKey] = new Set<string>();
@@ -277,13 +281,11 @@ export default function DashboardPage() {
             tithesApi.getTithes({ startDate: prevMonthStart.toISOString(), endDate: prevMonthEnd.toISOString() }),
           ]);
 
-          const monthlyTithesAmount = Array.isArray(tithesThisMonth)
-            ? tithesThisMonth.reduce((sum, t) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0)
-            : 0;
+          const tithesThisMonthData = Array.isArray(tithesThisMonth) ? tithesThisMonth : (tithesThisMonth as any).data || [];
+          const tithesPreviousMonthData = Array.isArray(tithesPreviousMonth) ? tithesPreviousMonth : (tithesPreviousMonth as any).data || [];
 
-          const previousMonthlyTithesAmount = Array.isArray(tithesPreviousMonth)
-            ? tithesPreviousMonth.reduce((sum, t) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0)
-            : 0;
+          const monthlyTithesAmount = tithesThisMonthData.reduce((sum: number, t: any) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0);
+          const previousMonthlyTithesAmount = tithesPreviousMonthData.reduce((sum: number, t: any) => sum + (t.paymentType === 'TITHE' ? (t.amount || 0) : 0), 0);
 
           const tithesChangePercent = calculatePercentageChange(monthlyTithesAmount, previousMonthlyTithesAmount);
 

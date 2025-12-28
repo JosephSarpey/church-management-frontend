@@ -23,60 +23,91 @@ export default function TithesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
 
-  
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Handle search debounce
   useEffect(() => {
-    const fetchTithes = async () => {
-      try {
-        setIsLoading(true);
-        const data = await tithesApi.getTithes();
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page
+    }, 500);
 
-        // Map backend shape to table-compatible shape
-        const mapped = data.map((t) => {
-          const paymentMethod =
-            t.paymentMethod === 'CASH'
-              ? 'Cash'
-              : t.paymentMethod === 'BANK_TRANSFER'
-              ? 'Bank Transfer'
-              : t.paymentMethod === 'CREDIT_CARD'
-              ? 'Credit Card'
-              : t.paymentMethod === 'MOBILE_MONEY'
-              ? 'Mobile Money'
-              : 'Other';
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-          const paymentType =
-            t.paymentType === 'TITHE'
-              ? 'Tithe'
-              : t.paymentType === 'OFFERING'
-              ? 'Offering'
-              : t.paymentType === 'DONATION'
-              ? 'Donation'
-              : 'Other';
+  const fetchTithes = async () => {
+    try {
+      setIsLoading(true);
+      const response = await tithesApi.getTithes({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: debouncedSearch || undefined,
+        paymentMethod: filter !== 'all' ? filter.toUpperCase().replace(' ', '_') : undefined,
+      });
 
-          const tableTithe: TableTithe = {
-            id: t.id,
-            memberName: t.memberName || '',
-            amount: t.amount,
-            paymentDate: new Date(t.paymentDate),
-            paymentMethod,
-            paymentType,
-            referenceNumber: t.reference || undefined,
-            notes: t.notes,
-          };
+      // Map backend shape to table-compatible shape
+      const mapped = response.data.map((t) => {
+        const paymentMethod =
+          t.paymentMethod === 'CASH'
+            ? 'Cash'
+            : t.paymentMethod === 'BANK_TRANSFER'
+            ? 'Bank Transfer'
+            : t.paymentMethod === 'CREDIT_CARD'
+            ? 'Credit Card'
+            : t.paymentMethod === 'MOBILE_MONEY'
+            ? 'Mobile Money'
+            : 'Other';
 
-          return tableTithe;
-        });
+        const paymentType =
+          t.paymentType === 'TITHE'
+            ? 'Tithe'
+            : t.paymentType === 'OFFERING'
+            ? 'Offering'
+            : t.paymentType === 'DONATION'
+            ? 'Donation'
+            : 'Other';
 
-        setTithes(mapped);
-      } catch (error) {
-        console.error('Error fetching tithes:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        const tableTithe: TableTithe = {
+          id: t.id,
+          memberName: t.memberName || '',
+          amount: t.amount,
+          paymentDate: new Date(t.paymentDate),
+          paymentMethod,
+          paymentType,
+          referenceNumber: t.reference || undefined,
+          notes: t.notes,
+        };
 
+        return tableTithe;
+      });
+
+      setTithes(mapped);
+      setPagination(prev => ({
+        ...prev,
+        total: response.meta.total,
+        totalPages: response.meta.totalPages
+      }));
+    } catch (error) {
+      console.error('Error fetching tithes:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTithes();
-  }, []);
+  }, [pagination.page, pagination.limit, filter, debouncedSearch]);
+
+  const handleView = (tithe: TableTithe) => {
+    router.push(`/tithes/${tithe.id}`);
+  };
 
   const handleEdit = (tithe: TableTithe) => {
     router.push(`/tithes/${tithe.id}/edit`);
@@ -85,20 +116,13 @@ export default function TithesPage() {
   const handleDelete = async (id: string) => {
     try {
       await tithesApi.deleteTithe(id);
-      setTithes((prev) => prev.filter((t) => t.id !== id));
+      fetchTithes(); // Refresh list
     } catch (error) {
       console.error('Error deleting tithe:', error);
     }
   };
 
-  const filteredTithes = tithes.filter((tithe) => {
-    const matchesSearch = tithe.memberName
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesFilter =
-      filter === 'all' || tithe.paymentMethod === filter;
-    return matchesSearch && matchesFilter;
-  });
+  const filteredTithes = tithes; // Server-side filtered
 
   return (
     <div className="container mx-auto py-6">
@@ -141,11 +165,64 @@ export default function TithesPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : (
-            <TithesTable
-              tithes={filteredTithes}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+            <div className="space-y-4">
+              <TithesTable
+                tithes={filteredTithes}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+
+              {/* Pagination Controls */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing <span className="font-medium">{tithes.length === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}</span> to{" "}
+                  <span className="font-medium">
+                    {Math.min(pagination.page * pagination.limit, pagination.total)}
+                  </span>{" "}
+                  of <span className="font-medium">{pagination.total}</span> records
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={pagination.limit.toString()}
+                    onValueChange={(value) => setPagination(prev => ({ ...prev, limit: parseInt(value), page: 1 }))}
+                  >
+                    <SelectTrigger className="w-[70px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground mr-2">per page</span>
+                  
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={pagination.page <= 1}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center justify-center min-w-[32px] text-sm font-medium">
+                      {pagination.page}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={pagination.page >= pagination.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

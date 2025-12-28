@@ -106,8 +106,7 @@ export default function MemberProfilePage() {
           limit: 100
         });
 
-        const attendanceData = Array.isArray(response?.data) ? response.data :
-          (Array.isArray(response) ? response : []);
+        const attendanceData = Array.isArray(response?.data) ? response.data : [];
 
         const last30Days = attendanceData.length;
         const lastAttendance = attendanceData[0];
@@ -142,24 +141,25 @@ export default function MemberProfilePage() {
       if (!params.id) return;
       try {
         setLoadingFinancials(true);
-        const tithes = await tithesApi.getTithes({ memberId: params.id });
+        const response = await tithesApi.getTithes({ memberId: params.id });
+        const tithesData = (response as any).data || [];
 
-        const totalTithes = (tithes || [])
-          .filter(t => t.paymentType === 'TITHE')
-          .reduce((s, t) => s + (t.amount || 0), 0);
+        const totalTithes = tithesData
+          .filter((t: any) => t.paymentType === 'TITHE')
+          .reduce((s: number, t: any) => s + (t.amount || 0), 0);
 
-        const titheCount = (tithes || []).filter(t => t.paymentType === 'TITHE').length;
+        const titheCount = tithesData.filter((t: any) => t.paymentType === 'TITHE').length;
 
-        const totalOfferings = (tithes || [])
-          .filter(t => t.paymentType === 'OFFERING')
-          .reduce((s, t) => s + (t.amount || 0), 0);
+        const totalOfferings = tithesData
+          .filter((t: any) => t.paymentType === 'OFFERING')
+          .reduce((s: number, t: any) => s + (t.amount || 0), 0);
 
-        const offeringCount = (tithes || []).filter(t => t.paymentType === 'OFFERING').length;
+        const offeringCount = tithesData.filter((t: any) => t.paymentType === 'OFFERING').length;
 
         setFinancialStats({ totalTithes, titheCount, totalOfferings, offeringCount });
-        const recent = (tithes || [])
+        const recent = tithesData
           .slice()
-          .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+          .sort((a: any, b: any) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
           .slice(0, 5);
         setRecentFinances(recent);
       } catch (err) {

@@ -80,6 +80,12 @@ export default function Attendance() {
     visitors: 0,
     byServiceType: {} as Record<ServiceType, number>
   })
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,26 +95,41 @@ export default function Attendance() {
           startDate: dateRange.from?.toISOString(),
           endDate: dateRange.to ? endOfDay(dateRange.to).toISOString() : undefined,
           serviceType: serviceType !== 'ALL' ? serviceType : undefined,
-          limit: 1000
+          page: pagination.page,
+          limit: pagination.limit,
         });
 
         const response = await attendanceApi.getAttendances({
           startDate: dateRange.from?.toISOString(),
           endDate: dateRange.to ? endOfDay(dateRange.to).toISOString() : undefined,
           serviceType: serviceType !== 'ALL' ? serviceType : undefined,
-          limit: 1000,
+          page: pagination.page,
+          limit: pagination.limit,
         });
 
-        const records = Array.isArray(response)
-          ? response.map(record => ({
+        const records = Array.isArray(response.data)
+          ? response.data.map(record => ({
             ...record,
             date: new Date(record.date)
           }))
           : [];
 
-
         setAttendanceData(records)
-        updateStats(records)
+        setPagination(prev => ({
+          ...prev,
+          total: response.meta?.total || 0,
+          totalPages: response.meta?.totalPages || 0
+        }))
+        
+        // Use backend stats for the cards
+        if (response.meta?.stats) {
+          setStats({
+            totalRecords: response.meta.total,
+            members: response.meta.stats.members,
+            visitors: response.meta.stats.visitors,
+            byServiceType: response.meta.stats.byServiceType as Record<ServiceType, number>
+          })
+        }
       } catch (error) {
         console.error('Error fetching attendance:', error)
         toast.error('Failed to load attendance data')
@@ -118,23 +139,9 @@ export default function Attendance() {
     }
 
     fetchData()
-  }, [dateRange, serviceType])
+  }, [dateRange, serviceType, pagination.page, pagination.limit])
 
-  const updateStats = (data: AttendanceRecord[]) => {
-    const stats = {
-      totalRecords: data.length,
-      members: data.filter(r => !r.isVisitor).length,
-      visitors: data.filter(r => r.isVisitor).length,
-      byServiceType: {} as Record<ServiceType, number>
-    }
-
-    // Count by service type
-    Object.values(ServiceType).forEach(type => {
-      stats.byServiceType[type] = data.filter(r => r.serviceType === type).length
-    })
-
-    setStats(stats)
-  }
+  // updateStats removed in favor of backend-provided stats
 
   const filteredData = (attendanceData || []).filter((record) => {
     const searchLower = search.toLowerCase()
@@ -397,6 +404,56 @@ export default function Attendance() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing <span className="font-medium">{attendanceData.length === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}</span> to{" "}
+                  <span className="font-medium">
+                    {Math.min(pagination.page * pagination.limit, pagination.total)}
+                  </span>{" "}
+                  of <span className="font-medium">{pagination.total}</span> records
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={pagination.limit.toString()}
+                    onValueChange={(value) => setPagination(prev => ({ ...prev, limit: parseInt(value), page: 1 }))}
+                  >
+                    <SelectTrigger className="w-[70px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground mr-2">per page</span>
+                  
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                      disabled={pagination.page <= 1}
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center justify-center min-w-[32px] text-sm font-medium">
+                      {pagination.page}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                      disabled={pagination.page >= pagination.totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               </div>
             </TabsContent>
 

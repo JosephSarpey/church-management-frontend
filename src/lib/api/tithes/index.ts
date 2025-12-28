@@ -12,9 +12,14 @@ import {
  */
 export const tithesApi = {
   async getTithes(filters?: {
+    search?: string;
     memberId?: string;
     startDate?: string;
     endDate?: string;
+    paymentMethod?: string;
+    paymentType?: string;
+    page?: number;
+    limit?: number;
   }): Promise<TithesList> {
     const response = await api.get<TithesList>('/tithes', { params: filters });
     return response.data;

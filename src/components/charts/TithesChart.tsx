@@ -67,15 +67,15 @@ export function TithesChart() {
         const sums: Record<string, number> = {};
         monthKeys.forEach((k) => (sums[k] = 0));
 
-        if (Array.isArray(tithes)) {
-          for (const t of tithes) {
-            if (t.paymentType !== 'TITHE') continue;
-            const pd = t.paymentDate || t.createdAt;
-            if (!pd) continue;
-            const dt = new Date(pd);
-            const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
-            if (key in sums) sums[key] += t.amount || 0;
-          }
+        const tithesData = Array.isArray(tithes) ? tithes : (tithes as any).data || [];
+
+        for (const t of tithesData) {
+          if (t.paymentType !== 'TITHE') continue;
+          const pd = t.paymentDate || t.createdAt;
+          if (!pd) continue;
+          const dt = new Date(pd);
+          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+          if (key in sums) sums[key] += t.amount || 0;
         }
 
         const result = months.map((d) => {

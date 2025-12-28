@@ -30,7 +30,7 @@ export function TithesOverview({ stats, circularColors }: TithesOverviewProps) {
             href="/tithes" 
             className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center"
           >
-            View report <ArrowUpRight className="ml-1 h-4 w-4" />
+            View tithes <ArrowUpRight className="ml-1 h-4 w-4" />
           </Link>
         </div>
         

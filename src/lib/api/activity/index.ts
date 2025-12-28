@@ -54,7 +54,10 @@ export const activityApi = {
 
       // Process tithes
       if (tithesResponse.status === 'fulfilled' && tithesResponse.value) {
-        const recentTithes = (tithesResponse.value as Tithe[])
+        // The tithes API now returns a paginated response with a .data property
+        const tithesData = (tithesResponse.value as any).data || tithesResponse.value;
+        
+        const recentTithes = (Array.isArray(tithesData) ? tithesData : [])
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 5);
 

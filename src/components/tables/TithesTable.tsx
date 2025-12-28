@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/Button';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
 export interface Tithe {
@@ -26,11 +26,12 @@ export interface Tithe {
 
 interface TithesTableProps {
   tithes: Tithe[];
+  onView?: (tithe: Tithe) => void;
   onEdit: (tithe: Tithe) => void;
   onDelete: (id: string) => void;
 }
 
-export function TithesTable({ tithes, onEdit, onDelete }: TithesTableProps) {
+export function TithesTable({ tithes, onView, onEdit, onDelete }: TithesTableProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
@@ -69,7 +70,7 @@ export function TithesTable({ tithes, onEdit, onDelete }: TithesTableProps) {
                 <TableCell className="font-medium">{tithe.memberName}</TableCell>
                 <TableCell>{tithe.paymentType}</TableCell>
                 <TableCell className="text-right">
-                  ${tithe.amount.toFixed(2)}
+                  ₵{tithe.amount.toFixed(2)}
                 </TableCell>
                 <TableCell>
                   {format(new Date(tithe.paymentDate), 'MMM dd, yyyy')}
@@ -78,6 +79,15 @@ export function TithesTable({ tithes, onEdit, onDelete }: TithesTableProps) {
                 <TableCell>{tithe.referenceNumber || '-'}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
+                    {onView && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onView(tithe)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"

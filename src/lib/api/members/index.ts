@@ -19,9 +19,9 @@ export const membersApi = {
    * @param skip Number of records to skip (for pagination)
    * @param take Number of records to take (page size)
    */
-  async getMembers(skip = 0, take = 50): Promise<PaginatedMembers> {
+  async getMembers(skip = 0, take = 50, search?: string): Promise<PaginatedMembers> {
     const response = await api.get<PaginatedMembers>('/members', {
-      params: { skip, take },
+      params: { skip, take, search },
     });
     return response.data;
   },
@@ -76,25 +76,7 @@ export const membersApi = {
     skip = 0,
     take = 50
   ): Promise<PaginatedMembers> {
-    // Backend does not expose a dedicated /members/search endpoint.
-    // Fall back to requesting the members list and filter client-side.
-    const response = await api.get<Member[]>(`/members`, {
-      params: { skip, take },
-    });
-
-    const all: Member[] = response.data || [];
-    const q = (query || '').toLowerCase();
-    const filtered = all.filter((m) => {
-      const full = `${m.firstName || ''} ${m.lastName || ''}`.toLowerCase();
-      return full.includes(q) || (m.email || '').toLowerCase().includes(q) || (m.phone || '').toLowerCase().includes(q) || (m.memberNumber || '').toLowerCase().includes(q);
-    });
-
-    return {
-      data: filtered,
-      total: filtered.length,
-      skip,
-      take,
-    } as PaginatedMembers;
+    return this.getMembers(skip, take, query);
   },
 
   /**

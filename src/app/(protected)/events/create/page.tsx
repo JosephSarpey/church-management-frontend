@@ -30,6 +30,7 @@ export default function CreateEventPage() {
     location: '',
     type: 'SUNDAY_SERVICE' as ServiceType,
     isRecurring: false,
+    recurringPattern: 'WEEKLY' as string,
     attendees: 0,
     maxAttendees: 100,
     registrationRequired: false,
@@ -370,6 +371,26 @@ export default function CreateEventPage() {
                     Recurring event
                   </label>
                 </div>
+
+                {formData.isRecurring && (
+                  <div className="pl-6 space-y-2">
+                    <label htmlFor="recurringPattern" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Recurrence Pattern
+                    </label>
+                    <select
+                      id="recurringPattern"
+                      name="recurringPattern"
+                      value={formData.recurringPattern}
+                      onChange={(e) => setFormData(prev => ({ ...prev, recurringPattern: e.target.value }))}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="DAILY">Daily</option>
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="MONTHLY">Monthly</option>
+                      <option value="YEARLY">Yearly</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 

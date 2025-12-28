@@ -78,6 +78,11 @@ export interface PaginatedAttendanceResponse {
     page: number;
     limit: number;
     totalPages: number;
+    stats: {
+      members: number;
+      visitors: number;
+      byServiceType: Record<string, number>;
+    };
   };
 }
 

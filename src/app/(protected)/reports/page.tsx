@@ -47,7 +47,7 @@ export default function ReportsPage() {
     },
     {
       id: 'donations',
-      title: 'Donations Report',
+      title: 'Financial Report',
       description: 'Track financial contributions, tithes, and analyze giving trends over time.',
       icon: <DollarSign className="h-5 w-5" />,
     },

@@ -36,6 +36,7 @@ interface FormData {
   status: EventStatus;
   image: File | null;
   imageUrl: string;
+  recurringPattern?: string;
 }
 
 export default function EditEventPage() {
@@ -55,6 +56,7 @@ export default function EditEventPage() {
     status: 'PUBLISHED',
     image: null,
     imageUrl: '',
+    recurringPattern: 'WEEKLY',
   });
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,6 +80,7 @@ export default function EditEventPage() {
           status: event.status as EventStatus,
           image: null,
           imageUrl: event.imageUrl || '',
+          recurringPattern: event.recurringPattern || 'WEEKLY',
         });
         if (event.imageUrl) {
           setPreviewImage(event.imageUrl);
@@ -344,73 +347,110 @@ export default function EditEventPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <div>
+                    <label htmlFor="attendees" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Current Attendees
                     </label>
                     <Input
+                      id="attendees"
+                      name="attendees"
                       type="number"
+                      min="0"
                       value={formData.attendees}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
                         attendees: parseInt(e.target.value) || 0
                       }))}
-                      min="0"
-                      placeholder="Number of attendees"
+                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <div>
+                    <label htmlFor="maxAttendees" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Max Attendees
                     </label>
                     <Input
+                      id="maxAttendees"
+                      name="maxAttendees"
                       type="number"
+                      min="1"
                       value={formData.maxAttendees}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
                         maxAttendees: parseInt(e.target.value) || 0
                       }))}
-                      min="1"
-                      placeholder="Maximum attendees"
+                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                   </div>
                 </div>
 
-                <div className="flex items-end space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="isRecurring"
-                      checked={formData.isRecurring}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        isRecurring: e.target.checked
-                      }))}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label htmlFor="isRecurring" className="text-sm font-medium">
-                      Recurring Event
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Event Status
                     </label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="registrationRequired"
-                      checked={formData.registrationRequired}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        registrationRequired: e.target.checked
-                      }))}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <label htmlFor="registrationRequired" className="text-sm font-medium">
-                      Registration Required
-                    </label>
+                    <select
+                      id="status"
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="DRAFT">Draft</option>
+                      <option value="PUBLISHED">Published</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
                   </div>
                 </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="registrationRequired"
+                    name="registrationRequired"
+                    type="checkbox"
+                    checked={formData.registrationRequired}
+                    onChange={(e) => setFormData(prev => ({ ...prev, registrationRequired: e.target.checked }))}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="registrationRequired" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Require registration
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="isRecurring"
+                    name="isRecurring"
+                    type="checkbox"
+                    checked={formData.isRecurring}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Recurring event
+                  </label>
+                </div>
+
+                {formData.isRecurring && (
+                  <div className="pl-6 space-y-2">
+                    <label htmlFor="recurringPattern" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Recurrence Pattern
+                    </label>
+                    <select
+                      id="recurringPattern"
+                      name="recurringPattern"
+                      value={formData.recurringPattern}
+                      onChange={handleChange}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="DAILY">Daily</option>
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="MONTHLY">Monthly</option>
+                      <option value="YEARLY">Yearly</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
